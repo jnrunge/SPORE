@@ -75,5 +75,5 @@ RScript KAISER.R KAISER-Settings.R
 
 ## Funding
 
-SNF Doc.Mobility fellowship 181303
-SNF Early PostDoc.Mobility fellowship 195249
+* SNF Doc.Mobility fellowship 181303
+* SNF Early PostDoc.Mobility fellowship 195249
