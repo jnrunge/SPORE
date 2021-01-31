@@ -26,16 +26,15 @@ The script requires R with some packages installed. The versions with which the 
 
 KAISER 1.0 was tested with / written for:
 
-R 3.6.3
-
-readr 1.4.0
-stringr 1.4.0
-dplyr 1.0.2
-tidyr 1.1.2
-data.table 1.13.2
-ggplot2 3.3.2
-naturalsort 0.1.3
-sys 3.4
+* R 3.6.3
+* readr 1.4.0
+* stringr 1.4.0
+* dplyr 1.0.2
+* tidyr 1.1.2
+* data.table 1.13.2
+* ggplot2 3.3.2
+* naturalsort 0.1.3
+* sys 3.4
 
 ## Installation
 
