@@ -1,6 +1,6 @@
-# KAISER Assigns Inbred Stock Elders Reliably
+# SPORE (Specific Parent-Offspring Relationship Estimation)
 
-KAISER will take as input a VCF file of a population (that *must* contain at least one pedigree-offspring pair as that is assumed) and will output a pedigree based on the genotypes in the VCF file. However, only parent-offspring relationships will be inferred. The difference of KAISER to other methods is that it works well in very inbred populations. A manuscript detailing the method will follow soon and will be linked here. Co-authors will be Andrés Bendesky, Barbara König & Anna K. Lindholm.
+SPORE will take as input a VCF file of a population (that *must* contain at least one pedigree-offspring pair as that is assumed) and will output a pedigree based on the genotypes in the VCF file. However, only parent-offspring relationships will be inferred. The difference of SPORE to other methods is that it works well in very inbred populations. A manuscript detailing the method will follow soon and will be linked here. Co-authors will be Andrés Bendesky, Barbara König & Anna K. Lindholm.
 
 Note that run-times are rather long (24h at 3,000 individuals in the VCF), but system requirements are otherwise rather mild.
 
@@ -24,7 +24,7 @@ Available here: <https://github.com/samtools/bcftools>
 
 The script requires R with some packages installed. The versions with which the script was tested are listed below.
 
-KAISER 1.0 was tested with / written for:
+SPORE 1.0 was tested with / written for:
 
 * R 3.6.3
 * readr 1.4.0
@@ -58,11 +58,11 @@ RScript KAISER.R KAISER-Settings.R
 
 ## Output files
 
-`*-imputed_pedigree.ped` This is the main result file and includes the pedigree as KAISER was able to infer it. If you input sexes, then "Father" and "Mother" columns are used, otherwise "ParentSexQ1" and "ParentSexQ2" will still contain trio results. If samples were very similar genetically (by default, IBD2 $\geq$ 0.95), then they will be merged into one sample and can be found in the "Dup" columns.
+`*-imputed_pedigree.ped` This is the main result file and includes the pedigree as SPORE was able to infer it. If you input sexes, then "Father" and "Mother" columns are used, otherwise "ParentSexQ1" and "ParentSexQ2" will still contain trio results. If samples were very similar genetically (by default, IBD2 $\geq$ 0.95), then they will be merged into one sample and can be found in the "Dup" columns.
 
 `*-PO-undirected.tsv` This contains a list of relationships where ID1 and ID2 were detected as parent and offspring, but could not be 'directed', meaning that it is unclear who is parent and who is offspring.
 
-`*-IBD0_threshold.png` This shows a plot where on the x axis are different thresholds of IBD0 and the y gives the fraction for three different variables: in blue, how many individuals have at least one relationship with another individual below the IBD0 threshold; in red, how many individuals have more than *when_PO_error* relationships (see configuration file); and in black the distance between those two fractions. The black dot highlights the maximum value of the black line, which is also written on the top left, and was subsequently used as a threshold by KAISER.
+`*-IBD0_threshold.png` This shows a plot where on the x axis are different thresholds of IBD0 and the y gives the fraction for three different variables: in blue, how many individuals have at least one relationship with another individual below the IBD0 threshold; in red, how many individuals have more than *when_PO_error* relationships (see configuration file); and in black the distance between those two fractions. The black dot highlights the maximum value of the black line, which is also written on the top left, and was subsequently used as a threshold by SPORE.
 
 `*-IBD0_IQR_threshold.png` Same as above, but for the inter-quartile range of IBD0 between the chromosomes.
 
