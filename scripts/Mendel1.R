@@ -48,21 +48,21 @@ for(i in 1:nrow(samples_ahmm))
             
             }
         
-            if(runif(1) < 0.1)
-        {print(paste(round(j/nrow(samples_ahmm)*100, 2), " % done in row.", sep=""))}
+           # if(runif(1) < 0.001)
+       # {print(paste(round(j/nrow(samples_ahmm)*100, 2), " % done in row.", sep=""))}
         
         }
     
-    print(paste(round(i/nrow(samples_ahmm)*100, 2), " % done in total.", sep=""))
-    if(runif(1) < 0.1)
+    print(paste(round(i/nrow(samples_ahmm)*100, 2), " %", sep=""))
+    if(runif(1) < 0.001)
         {
         print("writing matrix")
-        write.matrix(x=overlapping_loci, file=paste(dir,prefix,"-ahmm.new_overlap", sep=""))
+        fwrite(x=overlapping_loci, file=paste(dir,prefix,"-ahmm.new_overlap", sep=""), col.names=FALSE, row.names=FALSE, sep="\t")
         system(command = paste("cp -f ",dir,prefix,"-ahmm.new_overlap"," ", dir,prefix,"-ahmm.new_overlap.bak", sep=""), intern=TRUE)
-        write.matrix(x=mendel_homo_error, file=paste(dir,prefix,"-ahmm.mendel_homo_error", sep=""))
+        fwrite(x=mendel_homo_error, file=paste(dir,prefix,"-ahmm.mendel_homo_error", sep=""), col.names=FALSE, row.names=FALSE, sep="\t")
         system(command = paste("cp -f ",dir,prefix,"-ahmm.mendel_homo_error"," ", dir, prefix,"-ahmm.mendel_homo_error.bak", sep=""), intern=TRUE)
     }
     }
 print("writing matrix")
-write.matrix(x=overlapping_loci, file=paste(dir,prefix,"-ahmm.new_overlap", sep=""))
-write.matrix(x=mendel_homo_error, file=paste(dir,prefix,"-ahmm.mendel_homo_error", sep=""))
+fwrite(x=overlapping_loci, file=paste(dir,prefix,"-ahmm.new_overlap", sep=""), col.names=FALSE, row.names=FALSE, sep="\t")
+fwrite(x=mendel_homo_error, file=paste(dir,prefix,"-ahmm.mendel_homo_error", sep=""), col.names=FALSE, row.names=FALSE, sep="\t")

@@ -35,6 +35,7 @@ KAISER 1.0 was tested with / written for:
 * ggplot2 3.3.2
 * naturalsort 0.1.3
 * sys 3.4
+* this.path 0.4.4
 
 ## Installation
 
