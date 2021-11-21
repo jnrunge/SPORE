@@ -1,4 +1,9 @@
+version="Beta 2.0"
+print(paste("SPORE ",version,sep=""))
 args = commandArgs(trailingOnly=TRUE)
+if(length(args)==0){
+    print("Please provide your settings file as an argument to SPORE when you run it.")
+    }
 library(this.path)
 KAISER_folder=this.dir()
 homozygous_mendel_script=paste(KAISER_folder,"/scripts/Mendel1.R",sep="")
@@ -1486,8 +1491,13 @@ FindGoodTrios=function(pedigree, Dup_plus_ID_cols)
 #     pedigree=pedigree[,-1*which(colnames(pedigree)=="Dup1")]
 #     Dup_plus_ID_cols=c("ID")
 # }
-
-    Genomics_Sex=fread(Genomics_Sex_File, data.table=FALSE)
+    if(Genomics_Sex_File!="")
+        {
+            Genomics_Sex=fread(Genomics_Sex_File, data.table=FALSE)
+        }else{
+            Genomics_Sex=data.frame(indv=pedigree$ID,Genomics_Sex="Q",stringsAsFactors=FALSE)
+        }
+        
 
     for(i in 1:nrow(pedigree))
         {
@@ -1951,6 +1961,28 @@ LastEffortDirectingPOs=function(OutSinglePOsUndirected)
     
     }
 
+prettyUpTrioOutput=function(x)
+    {
+    x=subset(x, V1!="V1")
+    x=subset(x, select=c("O","P1","P2","V1_V1_mean","V1_percentile","IBD0_mean","IBD0_IQR_mean","homo_mendel_rel_mean","score"))
+    x$V1_V1_mean=as.numeric(x$V1_V1_mean)
+    x$V1_percentile=as.numeric(x$V1_percentile)
+    x$IBD0_mean=as.numeric(x$IBD0_mean)
+    x$IBD0_IQR_mean=as.numeric(x$IBD0_IQR_mean)
+    x$homo_mendel_rel_mean=as.numeric(x$homo_mendel_rel_mean)
+    x$score=as.numeric(x$score)
+    x=x[!duplicated(x),]
+    colnames(x)=c("O","P1","P2","OffspringRelativeTrioErrors","DatasetRelativeTrioErrors","IBD0_mean","IBD0_IQR_mean","homo_mendel_rel_mean","score")
+
+
+    return(x)
+}
+
+if(args[1]=="KAISER"){
+    print("Yes, this was the original name of the method, but please provide a settings file instead.")
+    stop("No settings file.")
+    }
+
 source(args[1])
 
 SbatchOrInline=1
@@ -2138,8 +2170,12 @@ if(previously_computed != TRUE)
     system(command=paste("gzip -f ",vcf,"-truffle.ibd.iqr",sep=""), intern = TRUE) 
     }
 print("Reading sex file.")
-Genomics_Sex=fread(Genomics_Sex_File, data.table=FALSE)
-
+if(Genomics_Sex_File!="")
+        {
+            Genomics_Sex=fread(Genomics_Sex_File, data.table=FALSE)
+        }else{
+            Genomics_Sex=data.frame(indv=unique(c(df$ID1,df$ID2)),Genomics_Sex="Q",stringsAsFactors=FALSE)
+        }
 
 print("Finding Mendelian trio errors.")
 print(system(command="echo Start && date", intern=TRUE))
@@ -2210,6 +2246,13 @@ if(previously_computed!=TRUE | previously_computed_homozygous_mendel != TRUE)
     print("Saving progress.")
     fwrite(df, file=paste(vcf,"-truffle.ibd.iqr",sep=""), quote = FALSE, col.names=TRUE, row.names=FALSE, sep="\t")
     system(command=paste("gzip -f ",vcf,"-truffle.ibd.iqr",sep=""), intern = TRUE) 
+    }
+
+if(file.exists(paste(folder,vcf,"-",pedigree_file_add_name, "-trios-choices.csv", sep="")))
+    {
+    mendels_trio_output=fread(paste(folder,vcf,"-",pedigree_file_add_name, "-trios-choices.csv", sep=""), data.table=FALSE)
+    mendels_trio_output=prettyUpTrioOutput(mendels_trio_output)
+    fwrite(mendels_trio_output,paste(folder,vcf,"-",pedigree_file_add_name, "-trios-choices.csv", sep=""))
     }
     
 fwrite(OutSinglePOsUndirected, file = paste(folder,vcf,"-",pedigree_file_add_name, "-PO-undirected.tsv", sep=""), col.names = TRUE, row.names = FALSE, sep="\t", quote=FALSE)
