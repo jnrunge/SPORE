@@ -1,0 +1,1 @@
+The example data provides a config file and a example vcf file, a subset of the published simulated genotypes. true.ped shows the correct pedigree of this subset and the imputed pedigree and undirected PO calls are also provided. Users can test if they get the same results.
