@@ -39,18 +39,18 @@ SPORE 1.0 was tested with / written for:
 
 ## Installation
 
-To use the script, simply make sure you have all the prerequisites mentioned above, clone this repository, and edit the KAISER-Settings.R file to suit your needs.
+To use the script, simply make sure you have all the prerequisites mentioned above, clone this repository, and edit the SPORE-Settings.R file to suit your needs.
 
 ## Configuration
 
-Please edit the configuration in KAISER-Settings.R and follow the descriptions in there.
+Please edit the configuration in SPORE-Settings.R and follow the descriptions in there.
 
 ## Execution
 
 Execute the script (after configuration) with the command
 
 ```` bash
-RScript KAISER.R KAISER-Settings.R
+RScript SPORE.R SPORE-Settings.R
 ````
 
 ### Potential issues
