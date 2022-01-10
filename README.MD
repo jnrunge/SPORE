@@ -1,10 +1,10 @@
 # SPORE (Specific Parent-Offspring Relationship Estimation)
 
-SPORE will take as input a VCF file of a population (that *must* contain at least one pedigree-offspring pair as that is assumed) and will output a pedigree based on the genotypes in the VCF file. However, only parent-offspring relationships will be inferred. The difference of SPORE to other methods is that it works well in very inbred populations. A manuscript detailing the method will follow soon and will be linked here. Co-authors will be Andrés Bendesky, Barbara König & Anna K. Lindholm.
-
-Note that run-times are rather long (24h at 3,000 individuals in the VCF), but system requirements are otherwise rather mild.
+*SPORE* will take as input a VCF file of a population and will output a pedigree based on the genotypes in the VCF file. However, only parent-offspring relationships will be inferred. The difference of SPORE to other methods is that it works well in very inbred populations. A manuscript detailing the method can be found here: <https://www.biorxiv.org/content/10.1101/2021.11.23.469656v2>.
 
 ## Prerequisites
+
+You must be reasonably sure that there is at least one parents-offspring trio among the individuals in the VCF as that *SPORE* assumes this and will deliver false results if this assumption is not met.
 
 You will likely need a Unix-based operating system (Linux) to fulfill the prerequisites for the script. 
 
@@ -72,9 +72,3 @@ RScript SPORE.R SPORE-Settings.R
 `*-TrioMendelErrorsComparedToMeanThreshold.png` Similar to before, but here we show on the x a threshold of how a trio's Mendelian errors compare to the mean Mendelian errors of all trios. In blue we show focals with exactly one trio that is below that threshold and in red focals with more than 1 trio below the threshold. The threshold is then picked (blue dot) based on the highest fraction of focals that have exactly one trio.
 
 `*-TrioMendelErrorsPercentileThreshold.png` Same as above, but the x is the percentile of Mendelian errors within all trios that were looked at for a given focal.
-
-
-## Funding
-
-* SNF Doc.Mobility fellowship 181303
-* SNF Early PostDoc.Mobility fellowship 195249
