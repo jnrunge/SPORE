@@ -6,6 +6,8 @@
 
 You must be reasonably sure that there is at least one parents-offspring trio among the individuals in the VCF as that *SPORE* assumes this and will deliver false results if this assumption is not met.
 
+You need 10,000 loci per chromosome for IBD0 IQR calculation, otherwise (if you disable IBD0 IQR calculation), you only need 10,000 loci for IBD0 calculation or theoretically no minimum (though this is not tested) if you disable IBD0 and IBD0 IQR calculation (thus only relying on homozygous and Mendelian trio mismatches).
+
 You will likely need a Unix-based operating system (Linux) to fulfill the prerequisites for the script. 
 
 ### TRUFFLE
