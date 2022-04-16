@@ -6,7 +6,7 @@
 
 You must be reasonably sure that there is at least one parents-offspring trio among the individuals in the VCF as that *SPORE* assumes this and will deliver false results if this assumption is not met.
 
-You need 10,000 loci per chromosome for IBD0 IQR calculation, otherwise (if you disable IBD0 IQR calculation), you only need 10,000 loci for IBD0 calculation or theoretically no minimum (though this is not tested) if you disable IBD0 and IBD0 IQR calculation (thus only relying on homozygous and Mendelian trio mismatches).
+You need about 10,000 loci per chromosome for IBD0 IQR calculation, otherwise (if you disable IBD0 IQR calculation), you only need about 10,000 loci for IBD0 calculation or theoretically no minimum (though this is not tested) if you disable IBD0 and IBD0 IQR calculation (thus only relying on homozygous and Mendelian trio mismatches).
 
 You will likely need a Unix-based operating system (Linux) to fulfill the prerequisites for the script. 
 
@@ -65,6 +65,8 @@ RScript SPORE.R SPORE-Settings.R
 
 `*-PO-undirected.tsv` This contains a list of relationships where ID1 and ID2 were detected as parent and offspring, but could not be 'directed', meaning that it is unclear who is parent and who is offspring.
 
+`*-trios-choices.csv` Table detailing the different choices *SPORE* made when multiple trios where possible for a given individuals.
+
 `*-IBD0_threshold.png` This shows a plot where on the x axis are different thresholds of IBD0 and the y gives the fraction for three different variables: in blue, how many individuals have at least one relationship with another individual below the IBD0 threshold; in red, how many individuals have more than *when_PO_error* relationships (see configuration file); and in black the distance between those two fractions. The black dot highlights the maximum value of the black line, which is also written on the top left, and was subsequently used as a threshold by SPORE.
 
 `*-IBD0_IQR_threshold.png` Same as above, but for the inter-quartile range of IBD0 between the chromosomes.
@@ -74,3 +76,7 @@ RScript SPORE.R SPORE-Settings.R
 `*-TrioMendelErrorsComparedToMeanThreshold.png` Similar to before, but here we show on the x a threshold of how a trio's Mendelian errors compare to the mean Mendelian errors of all trios. In blue we show focals with exactly one trio that is below that threshold and in red focals with more than 1 trio below the threshold. The threshold is then picked (blue dot) based on the highest fraction of focals that have exactly one trio.
 
 `*-TrioMendelErrorsPercentileThreshold.png` Same as above, but the x is the percentile of Mendelian errors within all trios that were looked at for a given focal.
+
+`*_threshold.csv.gz` The data that generated the plots for further analyses if desired. 
+
+`*_threshold.txt` The threshold calculated, so that re-calculation can be skipped if desired.

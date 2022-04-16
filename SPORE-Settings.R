@@ -2,11 +2,13 @@ trufflepath="truffle" # where is the TRUFFLE executable on your system?
 truffle_maf=0.0001 # What is the MAF setting you want to set on TRUFFLE?
 truffle_missing=0.95 # What is the missing % setting you want to set on TRUFFLE?
 
-when_PO_error=6 # this is the assumed number of offspring that an individual has. think of it as an average number of offspring you expect individuals to have in this population. This metric essentially changes the sensitivity of the script. 
+APO=6 # this is the assumed number of offspring that an individual has. think of it as an average number of offspring you expect individuals to have in this population. This metric essentially changes the sensitivity of the script. 
+
+IntermediateSamplingMode=TRUE # Extensive or Intermediate Sampling Mode? If unsure, use Intermediate
 
 downsample_for_homozygous_mendel=0.01 # when the script looks for homozygous mendelian errors and loci overlap, what is the downsampling you want to apply to reduce memory load?
 
-pedigree_file_add_name="" # this will add a string to the output filenames, for example to 
+pedigree_file_add_name="" # this will add a string to the output filenames, for example to distinguish different runs with different settings on the same VCF
 
 min_loci=1 # minimum number of loci that individuals must have to be included in the analysis. For all, set 1.
 
@@ -22,17 +24,20 @@ Birthdate_File="" # can be empty if you do not have birthdates! - columns "ID" a
 
 plots=TRUE # whether you want to produce plots that are saved in the same directory.
 
-max_memory="12G" # Some parts of the script need to know what maximum amount of RAM you have available.
+max_memory="12G" # Some parts of the script need to know what maximum amount of RAM you have available, but this is not guarantee to prevent out of memory situations. 
+
 max_cores=1 # Some parts of the script need to know what maximum amount of CPU cores you have available.
 trufflecpu=max_cores # Can TRUFFLE use the same amount of cores?
 
 
-##### SLURM
+##### Advanced: Change the variables that are used
 
-SbatchOrInline=1 # 1 = Inline; 2 = Sbatch; This allows you to use the inbuild SLURM scheduling. If you are not using SLURM, then you should leave this at 1. SLURM will allow for better paralellization.
+no_IBD0=FALSE # disable
+no_IQR=FALSE # the use of 
+no_HM=FALSE # the default variables that SPORE uses
 
-truffle_slurm_account="" # which slurm account to schedule tasks in
-homozygous_mendel_slurm_account=truffle_slurm_account # which slurm account to schedule tasks in
+# optional input file, format is ID1,ID2,value,value2,...
+ExtraVariables="none" # this should be a path if you want to use this feature
 
 
 ##### Advanced: Continue previous runs

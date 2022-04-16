@@ -1,14 +1,32 @@
-version="Beta 2.0"
+version="2.1"
 print(paste("SPORE ",version,sep=""))
+print("Web: https://github.com/jnrunge/SPORE")
 args = commandArgs(trailingOnly=TRUE)
 if(length(args)==0){
-    print("Please provide your settings file as an argument to SPORE when you run it.")
+    stop("Please provide your settings file as an argument to SPORE when you run it.")
     }
 library(this.path)
 KAISER_folder=this.dir()
 homozygous_mendel_script=paste(KAISER_folder,"/scripts/Mendel1.R",sep="")
 Fx_Mendel_Script=paste(KAISER_folder,"/scripts/Mendel2.R",sep="")
 previously_computed_three_thresholds=FALSE
+
+NoTrioCalculation=FALSE
+AimPopFractionAPO=1
+LowTrioMode=FALSE
+
+trios_file=NA
+
+LowMemoryTrioMode=FALSE
+
+no_IBD0=FALSE
+no_IQR=FALSE
+no_HM=FALSE
+
+# optional input file, format is ID1,ID2,value,value2,...
+ExtraVariables="none"
+
+
 BarnFixPlates=FALSE
 samtools_activation=""
 
@@ -67,6 +85,8 @@ truffle_full_command=gsub("\r?\n|\r", " ", truffle_full_command)
 InlineTruffle=function()
     {
     
+    if(no_IQR==FALSE)
+        {
     for(chr in chromosomes)
         {
         print(paste("Chromosome ", chr,sep=""))
@@ -102,7 +122,7 @@ InlineTruffle=function()
         truffle_chrs_command=gsub("\r?\n|\r", " ", truffle_chrs_command)
         system(command=truffle_chrs_command, intern=TRUE)
     }
-    
+    }
     
     
     
@@ -234,6 +254,12 @@ IncorporateIBDandIQR=function(df)
      
      for(chr in chromosomes)
     {
+    print(paste("Reading TRUFFLE chromosome",chr))
+    if(file.size(paste(folder,vcf,".Chr",chr,".vcf.gz-truffle.ibd.gz",sep=""))<1000)
+        {
+        print("TRUFFLE did not run (probably too few loci on this chromosome!")
+        next
+        }
     truffle_tmp=fread(paste(folder,vcf,".Chr",chr,".vcf.gz-truffle.ibd.gz",sep=""), data.table=FALSE)
     truffle_tmp[,paste("IBD0_",chr,sep="")]=truffle_tmp$IBD0
     #truffle_tmp[,paste("IBD1_",chr,sep="")]=truffle_tmp$IBD1
@@ -392,235 +418,77 @@ computeROC=function(x, dataframe, column, df_to_use, countIndiv)
     return(dataframe)
 }
 
-computeAndPlotIBD0threshold=function()
+ComputeAndPlotValueThreshold=function(Value, #Value is a vector
+ValueName,EvaluateXLevels, df #add df explicitly, because for IQR we want to use a subset of the df
+)
     {
     
-    sequence=unique(df$IBD0[order(df$IBD0)])
+    # locally in this function add value column to df, for ease of access
+    df$Value=Value
     
-    if(length(sequence)>10000)
+    # generalized function for IBD0, IQR, HM, and optional additional thresholds.
+    
+    sequence=unique(Value[order(Value)]) 
+    
+    # at default, evaluate 10k unique levels of value, of which the first 9k are all first 9k values in order, and the rest 1k are equal sized steps until the max value.
+    
+    if(length(sequence)>EvaluateXLevels)
         {
-        sequence=sequence[1:10000]
-        sequence[9000:10000]=seq(sequence[9000], max(df$IBD0, na.rm=TRUE), length.out=1001)
+        sequence=sequence[1:EvaluateXLevels]
+        sequence[(EvaluateXLevels-(0.1*EvaluateXLevels)):EvaluateXLevels]=seq(sequence[(EvaluateXLevels-(0.1*EvaluateXLevels))], max(Value, na.rm=TRUE), length.out=(0.1*EvaluateXLevels)+1)
         sequence=sequence[sequence<=1.0 & !is.na(sequence)]
         sequence=sequence[order(sequence)]
     }
 
-    
-    #sequence=seq(0, quantile(df$IBD0, probs = 1, na.rm=TRUE), by=(unique(df$IBD0[order(df$IBD0)])[2]-unique(df$IBD0[order(df$IBD0)])[1]))
-    #sequence=sequence+(1:length(sequence))*(unique(df$IBD0[order(df$IBD0)])[2]-unique(df$IBD0[order(df$IBD0)])[1])
-    #if(length(sequence)>10000)
-    #    {
-    #    sequence=sequence[1:10000]
-    #}
-    
+    print(paste("Thresholding ",ValueName,":",sep=""))
     print(head(sequence))
     print(length(sequence))
 
-    IBD0_threshold=data.frame(IBD0=sequence, AtLeastOnePOFocal=NA, moreThanTwoPOFocal=NA)
+    Value_threshold=data.frame(Value=sequence, AtLeastOnePOFocal=NA, moreThanTwoPOFocal=NA)
     countIndiv=length(unique(c(df$ID1,df$ID2)))
 
-    IBD0_threshold=bind_rows(mclapply(1:nrow(IBD0_threshold), FUN=computeROC, dataframe=IBD0_threshold, column="IBD0", df_to_use=df, countIndiv=countIndiv, mc.cores = max_cores))
+    Value_threshold=bind_rows(mclapply(1:nrow(Value_threshold), FUN=computeROC, dataframe=Value_threshold, column="Value", df_to_use=df, countIndiv=countIndiv, mc.cores = max_cores))
 
-    IBD0_threshold$distance=IBD0_threshold$AtLeastOnePOFocal-IBD0_threshold$moreThanTwoPOFocal
+    Value_threshold$distance=Value_threshold$AtLeastOnePOFocal-Value_threshold$moreThanTwoPOFocal
+        
+    if(AimPopFractionAPO<1)
+        {
+        Value_threshold_sub=subset(Value_threshold, AtLeastOnePOFocal <= AimPopFractionAPO)
+        if(nrow(Value_threshold_sub)<1){
+            Value_threshold_sub=subset(Value_threshold, AtLeastOnePOFocal==min(Value_threshold$AtLeastOnePOFocal))
+            }
+        thr=Value_threshold_sub$Value[which(Value_threshold_sub$distance==max(Value_threshold_sub$distance))[length(which(Value_threshold_sub$distance==max(Value_threshold_sub$distance)))]]
+        }else{
+        thr=Value_threshold$Value[which(Value_threshold$distance==max(Value_threshold$distance))[length(which(Value_threshold$distance==max(Value_threshold$distance)))]]
+        }
     
-     #print(summary(IBD0_threshold$distance))
-        IBD0_threshold$distance_raw=IBD0_threshold$distance
-
-    #IBD0_threshold$distance=predict(loess(distance~IBD0,IBD0_threshold,span=0.1))
-    
-    #print(summary(IBD0_threshold$distance))
-
-
-    #ggplot(IBD0_threshold, aes(moreThanTwoPOFocal,AtLeastOnePOFocal,color=IBD0))+
-    #geom_line()
     if(plots==TRUE)
         {
         
-        p<-ggplot(IBD0_threshold, aes(IBD0,AtLeastOnePOFocal))+
+        p<-ggplot(Value_threshold, aes(Value,AtLeastOnePOFocal))+
         geom_line(color="blue")+
-        geom_line(mapping=aes(IBD0, moreThanTwoPOFocal),color="red")+
-        geom_line(mapping=aes(IBD0, distance),color="black")+
-                                geom_line(mapping=aes(IBD0, distance_raw),color="grey")+
-geom_label(x=quantile(IBD0_threshold$IBD0, 0.2), y=quantile(IBD0_threshold$AtLeastOnePOFocal, 0.75), label=IBD0_threshold$IBD0[which(IBD0_threshold$distance==max(IBD0_threshold$distance))[length(which(IBD0_threshold$distance==max(IBD0_threshold$distance)))]])+
+        geom_line(mapping=aes(Value, moreThanTwoPOFocal),color="red")+
+        geom_line(mapping=aes(Value, distance),color="grey")+
         ylab("")+
-        geom_point(mapping=aes(x=IBD0_threshold$IBD0[which(IBD0_threshold$distance==max(IBD0_threshold$distance))[length(which(IBD0_threshold$distance==max(IBD0_threshold$distance)))]],
-                              y=max(IBD0_threshold$distance)), color="black")
-        ggsave(filename = paste(vcf,"-",pedigree_file_add_name,"-IBD0_threshold.png",sep=""), plot = p)
+        geom_point(mapping=aes(x=thr,
+                              y=Value_threshold$distance[Value_threshold$Value==thr]), color="black")
+        ggsave(filename = paste(vcf,"-",pedigree_file_add_name,"-",ValueName,"_threshold.png",sep=""), plot = p)
+        
+        p<-ggplot(Value_threshold, aes(Value,AtLeastOnePOFocal))+
+        geom_line(color="blue")+
+        geom_line(mapping=aes(Value, moreThanTwoPOFocal),color="red")+
+        geom_line(mapping=aes(Value, distance),color="grey")+
+        ylab("")+
+        coord_cartesian(xlim=c(0, which(Value_threshold$Value==thr)+1000))+
+        geom_point(mapping=aes(x=thr,
+                              y=Value_threshold$distance[Value_threshold$Value==thr]), color="black")
+        ggsave(filename = paste(vcf,"-",pedigree_file_add_name,"-",ValueName,"_threshold_zoom.png",sep=""), plot = p)
         
         }
-    thr=IBD0_threshold$IBD0[which(IBD0_threshold$distance==max(IBD0_threshold$distance))[length(which(IBD0_threshold$distance==max(IBD0_threshold$distance)))]]
     
-    system(command=paste("echo ", thr, " > ", vcf,"-",pedigree_file_add_name,"-IBD0_threshold.txt",sep=""), intern=TRUE)
+    fwrite(Value_threshold, paste(vcf,"-",pedigree_file_add_name,"-",ValueName,"_threshold.csv.gz",sep=""))
+    system(command=paste("echo ", thr, " > ", vcf,"-",pedigree_file_add_name,"-",ValueName,"_threshold.txt",sep=""), intern=TRUE)
     
-    return(thr)
-
-    }
-
-
-computeAndPlotIBD0IQRthreshold=function()
-    {
-    
-    df_IBD0low=subset(df, IBD0 < 0.5)
-    
-    # Im doing this because unlike the other measurements, IQR can goes low on both ends of the IBD0 spectrum
-    
-    sequence=unique(df_IBD0low$IBD0_IQR[order(df_IBD0low$IBD0_IQR)])
-    
-    if(length(sequence)>10000)
-        {
-        sequence=sequence[1:10000]
-        sequence[9000:10000]=seq(sequence[9000], max(df_IBD0low$IBD0_IQR, na.rm=TRUE), length.out=1001)
-        sequence=sequence[sequence<=1.0 & !is.na(sequence)]
-        sequence=sequence[order(sequence)]
-    }
-#     sequence=seq(0, quantile(df$IBD0_IQR, probs = 1, na.rm=TRUE), by=(unique(df$IBD0_IQR[order(df$IBD0_IQR)])[2]-unique(df$IBD0_IQR[order(df$IBD0_IQR)])[1]))
-    
-#     sequence=sequence+(1:length(sequence))*(unique(df$IBD0_IQR[order(df$IBD0_IQR)])[2]-unique(df$IBD0_IQR[order(df$IBD0_IQR)])[1])
-    
-#     if(length(sequence)>10000)
-#         {
-#         sequence=sequence[1:10000]
-#     }
-    
-    print(head(sequence))
-    print(length(sequence))
-
-    IBD0_IQR_threshold=data.frame(IBD0_IQR=sequence, AtLeastOnePOFocal=NA, moreThanTwoPOFocal=NA)
-    countIndiv=length(unique(c(df$ID1,df$ID2)))
-
-    IBD0_IQR_threshold=bind_rows(mclapply(1:nrow(IBD0_IQR_threshold), FUN=computeROC, dataframe=IBD0_IQR_threshold, column="IBD0_IQR", df_to_use=df_IBD0low, countIndiv=countIndiv, mc.cores = max_cores))
-
-    IBD0_IQR_threshold$distance=IBD0_IQR_threshold$AtLeastOnePOFocal-IBD0_IQR_threshold$moreThanTwoPOFocal
-    IBD0_IQR_threshold$distance_raw=IBD0_IQR_threshold$distance
-
-    #IBD0_IQR_threshold$distance=predict(loess(distance~IBD0_IQR,IBD0_IQR_threshold,span=0.1))
-
-
-    #ggplot(IBD0_IQR_threshold, aes(moreThanTwoPOFocal,AtLeastOnePOFocal,color=IBD0_IQR))+
-    #geom_line()
-    if(plots==TRUE)
-        {
-        p<-ggplot(IBD0_IQR_threshold, aes(IBD0_IQR,AtLeastOnePOFocal))+
-        geom_line(color="blue")+
-        geom_line(mapping=aes(IBD0_IQR, moreThanTwoPOFocal),color="red")+
-        geom_line(mapping=aes(IBD0_IQR, distance),color="black")+
-                        geom_line(mapping=aes(IBD0_IQR, distance_raw),color="grey")+
-geom_label(x=quantile(IBD0_IQR_threshold$IBD0_IQR, 0.2), y=quantile(IBD0_IQR_threshold$AtLeastOnePOFocal, 0.75), label=IBD0_IQR_threshold$IBD0_IQR[which(IBD0_IQR_threshold$distance==max(IBD0_IQR_threshold$distance))[length(which(IBD0_IQR_threshold$distance==max(IBD0_IQR_threshold$distance)))]])+
-        ylab("")+
-        geom_point(mapping=aes(x=IBD0_IQR_threshold$IBD0_IQR[which(IBD0_IQR_threshold$distance==max(IBD0_IQR_threshold$distance))[length(which(IBD0_IQR_threshold$distance==max(IBD0_IQR_threshold$distance)))]],
-                              y=max(IBD0_IQR_threshold$distance)), color="black")
-        ggsave(filename = paste(vcf,"-",pedigree_file_add_name,"-IBD0_IQR_threshold.png",sep=""), plot = p)
-        }
-    thr=IBD0_IQR_threshold$IBD0_IQR[which(IBD0_IQR_threshold$distance==max(IBD0_IQR_threshold$distance))[length(which(IBD0_IQR_threshold$distance==max(IBD0_IQR_threshold$distance)))]]
-    
-    system(command=paste("echo ", thr, " > ", vcf,"-",pedigree_file_add_name,"-IBD0_IQR_threshold.txt",sep=""), intern=TRUE)
-    
-    return(thr)
-
-    }
-
-# computeAndPlotIBD0sdthreshold=function()
-#     {
-#     sequence=seq(0, quantile(df$IBD0_sd, probs = 1, na.rm=TRUE), by=0.001*max(df$IBD0_sd, na.rm=TRUE))
-#     if(length(sequence)>10000)
-#         {
-#         sequence=sequence[1:10000]
-#     }
-
-#     IBD0_sd_threshold=data.frame(IBD0_sd=sequence, AtLeastOnePOFocal=NA, moreThanTwoPOFocal=NA)
-
-#     IBD0_sd_threshold=bind_rows(mclapply(1:nrow(IBD0_sd_threshold), FUN=computeROC, dataframe=IBD0_sd_threshold, column="IBD0_sd", mc.cores = max_cores))
-
-#     IBD0_sd_threshold$distance=IBD0_sd_threshold$AtLeastOnePOFocal-IBD0_sd_threshold$moreThanTwoPOFocal
-
-#     #IBD0_sd_threshold$distance=predict(loess(distance~IBD0_sd,IBD0_sd_threshold,span=1))
-
-
-#     #ggplot(IBD0_sd_threshold, aes(moreThanTwoPOFocal,AtLeastOnePOFocal,color=IBD0_sd))+
-#     #geom_line()
-#     if(plots==TRUE)
-#         {
-#         p<-ggplot(IBD0_sd_threshold, aes(IBD0_sd,AtLeastOnePOFocal))+
-#         geom_line(color="blue")+
-#         geom_line(mapping=aes(IBD0_sd, moreThanTwoPOFocal),color="red")+
-#         geom_line(mapping=aes(IBD0_sd, distance),color="black")+
-#         geom_label(x=quantile(IBD0_sd_threshold$IBD0_sd, 0.2), y=quantile(IBD0_sd_threshold$AtLeastOnePOFocal, 0.75), label=IBD0_sd_threshold$IBD0_sd[which(IBD0_sd_threshold$distance==max(IBD0_sd_threshold$distance))[length(which(IBD0_sd_threshold$distance==max(IBD0_sd_threshold$distance)))]])+
-#         ylab("")+
-#         geom_point(mapping=aes(x=IBD0_sd_threshold$IBD0_sd[which(IBD0_sd_threshold$distance==max(IBD0_sd_threshold$distance))[length(which(IBD0_sd_threshold$distance==max(IBD0_sd_threshold$distance)))]],
-#                               y=max(IBD0_sd_threshold$distance)), color="black")
-#         ggsave(filename = paste(vcf,"-",pedigree_file_add_name,"-IBD0_sd_threshold.png",sep=""), plot = p)
-#         }
-    
-#     thr=IBD0_sd_threshold$IBD0_sd[which(IBD0_sd_threshold$distance==max(IBD0_sd_threshold$distance))[length(which(IBD0_sd_threshold$distance==max(IBD0_sd_threshold$distance)))]]
-    
-#         system(command=paste("echo ", thr, " > ", vcf,"-",pedigree_file_add_name,"-IBD0_sd_threshold.txt",sep=""), intern=TRUE)
-
-    
-    
-#     return(thr)
-
-#     }
-
-computeAndPlothomomendelrelthreshold=function()
-    {
-    
-    
-    sequence=unique(df$homo_mendel_rel[order(df$homo_mendel_rel)])
-    
-    if(length(sequence)>10000)
-        {
-        sequence=sequence[1:10000]
-        sequence[9000:10000]=seq(sequence[9000], max(df$homo_mendel_rel, na.rm=TRUE), length.out=1001)
-        sequence=sequence[sequence<=1.0 & !is.na(sequence)]
-        sequence=sequence[order(sequence)]
-    }
-    
-#     sequence=seq(0, quantile(df$homo_mendel_rel, probs = 1, na.rm=TRUE), by=(unique(df$homo_mendel_rel[order(df$homo_mendel_rel)])[2]-unique(df$homo_mendel_rel[order(df$homo_mendel_rel)])[1]))
-    
-    
-#     sequence=sequence+(1:length(sequence))*(unique(df$homo_mendel_rel[order(df$homo_mendel_rel)])[2]-unique(df$homo_mendel_rel[order(df$homo_mendel_rel)])[1])
-    
-   
-#     if(length(sequence)>10000)
-#         {
-#         sequence=sequence[1:10000]
-#     }
-    
-    print(head(sequence))
-    print(length(sequence))
-
-    homo_mendel_rel_threshold=data.frame(homo_mendel_rel=sequence, AtLeastOnePOFocal=NA, moreThanTwoPOFocal=NA)
-    countIndiv=length(unique(c(df$ID1,df$ID2)))
-
-    homo_mendel_rel_threshold=bind_rows(mclapply(1:nrow(homo_mendel_rel_threshold), FUN=computeROC, dataframe=homo_mendel_rel_threshold, column="homo_mendel_rel", df_to_use=df, countIndiv=countIndiv, mc.cores = max_cores))
-
-    homo_mendel_rel_threshold$distance=homo_mendel_rel_threshold$AtLeastOnePOFocal-homo_mendel_rel_threshold$moreThanTwoPOFocal
-    
-    homo_mendel_rel_threshold$distance_raw=homo_mendel_rel_threshold$distance
-
-    #homo_mendel_rel_threshold$distance=predict(loess(distance~homo_mendel_rel,homo_mendel_rel_threshold,span=0.1))
-
-
-    #ggplot(homo_mendel_rel_threshold, aes(moreThanTwoPOFocal,AtLeastOnePOFocal,color=homo_mendel_rel))+
-    #geom_line()
-    if(plots==TRUE)
-        {
-        p<-ggplot(homo_mendel_rel_threshold, aes(homo_mendel_rel,AtLeastOnePOFocal))+
-        geom_line(color="blue")+
-        geom_line(mapping=aes(homo_mendel_rel, moreThanTwoPOFocal),color="red")+
-        geom_line(mapping=aes(homo_mendel_rel, distance),color="black")+
-                geom_line(mapping=aes(homo_mendel_rel, distance_raw),color="grey")+
-geom_label(x=quantile(homo_mendel_rel_threshold$homo_mendel_rel, 0.2), y=quantile(homo_mendel_rel_threshold$AtLeastOnePOFocal, 0.75), label=homo_mendel_rel_threshold$homo_mendel_rel[which(homo_mendel_rel_threshold$distance==max(homo_mendel_rel_threshold$distance))[length(which(homo_mendel_rel_threshold$distance==max(homo_mendel_rel_threshold$distance)))]])+
-        ylab("")+
-        geom_point(mapping=aes(x=homo_mendel_rel_threshold$homo_mendel_rel[which(homo_mendel_rel_threshold$distance==max(homo_mendel_rel_threshold$distance))[length(which(homo_mendel_rel_threshold$distance==max(homo_mendel_rel_threshold$distance)))]],
-                              y=max(homo_mendel_rel_threshold$distance)), color="black")
-        ggsave(filename = paste(vcf,"-",pedigree_file_add_name,"-homo_mendel_rel_threshold.png",sep=""), plot = p)
-        }
-    
-    thr=homo_mendel_rel_threshold$homo_mendel_rel[which(homo_mendel_rel_threshold$distance==max(homo_mendel_rel_threshold$distance))[length(which(homo_mendel_rel_threshold$distance==max(homo_mendel_rel_threshold$distance)))]]
-    
-            system(command=paste("echo ", thr, " > ", vcf,"-",pedigree_file_add_name,"-homo_mendel_rel_threshold.txt",sep=""), intern=TRUE)
-
     return(thr)
 
     }
@@ -640,11 +508,40 @@ PlotIBD2DPThreshold=function()
 ClassifyRelationshipCandidates=function(df)
     {
     df$suspect=NA
-    if(no_IQR==TRUE)
-        {
-            df$suspect[(df$IBD0 <= (IBD0_threshold) | df$homo_mendel_rel <= (homo_mendel_rel_threshold))]="PO"
-        }else{
-            df$suspect[(df$IBD0 <= (IBD0_threshold) | df$homo_mendel_rel <= (homo_mendel_rel_threshold)) | df$IBD0_IQR <= (IBD0_IQR_threshold)]="PO"
+    
+    if(IBD0_threshold==1){
+        IBD0_threshold=-1
+        }
+    
+    if(homo_mendel_rel_threshold==1){
+        homo_mendel_rel_threshold=-1
+        }
+    
+    if(IBD0_IQR_threshold==1){
+        IBD0_IQR_threshold=-1
+        }
+    
+    df$suspect[(df$IBD0 <= (IBD0_threshold) | df$homo_mendel_rel <= (homo_mendel_rel_threshold)) | df$IBD0_IQR <= (IBD0_IQR_threshold)]="PO"
+    
+    if(IBD0_threshold==-1){
+        IBD0_threshold=1
+        }
+    
+    if(homo_mendel_rel_threshold==-1){
+        homo_mendel_rel_threshold=1
+        }
+    
+    if(IBD0_IQR_threshold==-1){
+        IBD0_IQR_threshold=1
+        }
+    
+    if(ExtraVariables!="none"){
+        
+        for(evdf in 3:ncol(ExtraVariables_df)){
+            ExtraVariables_df_tmp_subset=ExtraVariables_df[ExtraVariables_df[,evdf]<=ethr[evdf-2],]
+            df$suspect[paste(df$ID1,df$ID2) %in% paste(ExtraVariables_df_tmp_subset$ID1,ExtraVariables_df_tmp_subset$ID2) | paste(df$ID1,df$ID2) %in% paste(ExtraVariables_df_tmp_subset$ID2,ExtraVariables_df_tmp_subset$ID1)]="PO"
+        }
+        
         }
     
     df$suspect[df$IBD2 >= IBD2_DP_Threshold]="DP"
@@ -664,10 +561,17 @@ PED_to_trios_txt=function(ped_file)
     trios_file=paste(ped_file,".trios.txt",sep="")
   if(previously_computed_mendel != TRUE)
     {
-      tmp_ped=fread(ped_file,header=FALSE)
-      tmp_ped=tmp_ped[,c(4,3,2)]
+      if(file.size(ped_file)>1000)
+          {
+          tmp_ped=fread(ped_file,header=FALSE)
+          tmp_ped=tmp_ped[,c(4,3,2)]
   
-      fwrite(x = tmp_ped, file = paste(ped_file,".trios.txt",sep=""), sep=",", col.names = FALSE, row.names = FALSE)
+          fwrite(x = tmp_ped, file = paste(ped_file,".trios.txt",sep=""), sep=",", col.names = FALSE, row.names = FALSE)
+          
+          
+          }else{
+          trios_file=NA
+          }
       }
   return(trios_file)
 }
@@ -853,11 +757,13 @@ InlineMendelTrios=function(Genomics_Sex, focals, df)
 
    #print(system(command=thecommand, intern=TRUE))
     
-    if(previously_computed_mendel != TRUE)
+    if(previously_computed_mendel != TRUE & !is.na(trios_file))
     {
     
     InlineBcftoolsMendelian(trios_file)
         
+        }else{
+        print("No trios to evaluate!")
         }
     
     return(trios_file)
@@ -879,8 +785,7 @@ GetMendelTriosData=function(trios_file)
   # df$mean_mendel=NA
   # df$min_mendel=NA
   
-  df$ID1=as.character(df$ID1)
-  df$ID2=as.character(df$ID2)
+  
   
   #all_mendel_summary=fread(paste(vcf,pedigree_file_add_name,"_all.mendel.summary.gz",sep=""), data.table=FALSE)
   all_mendel_summary=convertOutputToOldFormat(trios_file)
@@ -956,7 +861,7 @@ GetMendelTriosData=function(trios_file)
     all_mendel_summary=tidyr::separate(all_mendel_summary, V2, c("O", "P1", "P2"), "_", remove=FALSE)
     
 
-  return(list(df,all_mendel_summary))
+  return(all_mendel_summary)
 }
 
 SearchForDuplicateSamples=function()
@@ -1034,6 +939,37 @@ pedigree$Dup1=NA
     return(pedigree)
     }
 
+ReadSomeMendelianResults=function(cur_IDs){
+    
+    cur_IDs_grep=paste0(cur_IDs,collapse="|")
+    
+        if(max_cores==1)
+      {
+        cur_mendels=fread(cmd = paste("grep -E ",cur_IDs_grep, " ", trios_file,".out",sep=""), header=TRUE, data.table=FALSE)
+
+      }else{
+
+
+            cur_mendels=fread(cmd = paste("grep -E ",cur_IDs_grep, " ", trios_file,".??.out",sep=""), header=TRUE, data.table=FALSE)
+
+            cur_mendels=subset(cur_mendels, `[2]nBad` != "[2]nBad")
+
+            cur_mendels=unique(cur_mendels)
+      }
+    
+    cur_mendels[,2]=as.numeric(cur_mendels[,2])
+    cur_mendels[,1]=as.numeric(cur_mendels[,1])
+    
+   cur_mendels$V1=cur_mendels[,2]/(cur_mendels[,1]+cur_mendels[,2])
+  cur_mendels=tidyr::separate(cur_mendels, "[4]Trio (mother,father,child)", into=c("P1","P2","O"), sep=",")
+  cur_mendels=cur_mendels[,c("V1","O", "P1", "P2")]
+
+
+    cur_mendels$ID=cur_mendels$O
+    
+    return(cur_mendels)
+    }
+
 
 
 GatherDeepMendelianData=function(x,no_dups)
@@ -1109,7 +1045,18 @@ GatherDeepMendelianData=function(x,no_dups)
             #print(cur_IDs)
             #cur_mendels_files=NA
             
-            cur_mendels=subset(all_mendel_summary, ID %in% cur_IDs)
+            
+    
+            if(LowMemoryTrioMode==TRUE)
+                {
+                
+                cur_mendels=ReadSomeMendelianResults(cur_IDs)
+                
+                }else{
+                
+                    cur_mendels=subset(all_mendel_summary, ID %in% cur_IDs)
+                
+                }
 
             
             #for(i in cur_IDs)
@@ -1304,10 +1251,82 @@ CompareMendelianErrorsForThresholds=function()
     #plot_V1_mean$focals_with_more_than_one_potential_trio=predict(loess(focals_with_more_than_one_potential_trio~V1_V1_mean,plot_V1_mean, span=1))
 
     plot_V1_calc=subset(plot_V1, focals_with_more_than_one_potential_trio < focals_with_one_potential_trio)
+    
+    
+    
     plot_V1_mean_calc=subset(plot_V1_mean, focals_with_more_than_one_potential_trio < focals_with_one_potential_trio)
 
-    V1_percentile_threshold=plot_V1_calc$V1_percentile[which(plot_V1_calc$focals_with_one_potential_trio==max(plot_V1_calc$focals_with_one_potential_trio))[length(which(plot_V1_calc$focals_with_one_potential_trio==max(plot_V1_calc$focals_with_one_potential_trio)))]]
-    V1_V1_mean_threshold=plot_V1_mean_calc$V1_V1_mean[which(plot_V1_mean_calc$focals_with_one_potential_trio==max(plot_V1_mean_calc$focals_with_one_potential_trio))[length(which(plot_V1_mean_calc$focals_with_one_potential_trio==max(plot_V1_mean_calc$focals_with_one_potential_trio)))]]
+   if(LowTrioMode==FALSE){
+               V1_percentile_threshold=plot_V1_calc$V1_percentile[which(plot_V1_calc$focals_with_one_potential_trio==max(plot_V1_calc$focals_with_one_potential_trio))[length(which(plot_V1_calc$focals_with_one_potential_trio==max(plot_V1_calc$focals_with_one_potential_trio)))]]
+            V1_V1_mean_threshold=plot_V1_mean_calc$V1_V1_mean[which(plot_V1_mean_calc$focals_with_one_potential_trio==max(plot_V1_mean_calc$focals_with_one_potential_trio))[length(which(plot_V1_mean_calc$focals_with_one_potential_trio==max(plot_V1_mean_calc$focals_with_one_potential_trio)))]]
+       }else{
+       
+       # detect the first decrease instead of max value
+       
+       if(nrow(plot_V1_calc)>1)
+           {
+           
+       for(ijk in 2:nrow(plot_V1_calc)){
+           if(plot_V1_calc$focals_with_one_potential_trio[ijk] < plot_V1_calc$focals_with_one_potential_trio[ijk-1] | 
+             plot_V1_calc$focals_with_one_potential_trio[ijk] > AimPopFractionAPO)
+               {
+               break
+           }
+           
+           }
+           V1_percentile_threshold=plot_V1_calc$V1_percentile[ijk-1]
+           }else
+           {
+           
+           if(nrow(plot_V1_calc)==1)
+               {
+               
+               V1_percentile_threshold=plot_V1_calc$V1_percentile[1]
+               
+               }else{
+               
+               V1_percentile_threshold=-999
+               
+               }
+           
+           }
+       
+       
+       
+       if(nrow(plot_V1_mean_calc)>1)
+           {
+           
+       for(ijk in 2:nrow(plot_V1_mean_calc)){
+           if(plot_V1_mean_calc$focals_with_one_potential_trio[ijk] < plot_V1_mean_calc$focals_with_one_potential_trio[ijk-1] |
+             plot_V1_mean_calc$focals_with_one_potential_trio[ijk] > AimPopFractionAPO)
+               {
+               break
+           }
+           
+           }
+           V1_V1_mean_threshold=plot_V1_mean_calc$V1_V1_mean[ijk-1]
+           }else
+           {
+           
+           if(nrow(plot_V1_mean_calc)==1)
+               {
+               
+               V1_V1_mean_threshold=plot_V1_mean_calc$V1_V1_mean[1]
+               
+               }else{
+               
+               V1_V1_mean_threshold=-999
+               
+               }
+           
+           }
+       
+       }
+    
+    if(LowTrioMode==TRUE)
+        {
+        V1_V1_mean_threshold=-999
+        }
     
     if(plots==TRUE)
         {
@@ -1315,56 +1334,44 @@ CompareMendelianErrorsForThresholds=function()
         geom_line(color="blue")+
         geom_line(mapping=aes(V1_percentile, focals_with_more_than_one_potential_trio),color="red")+
         #geom_line(mapping=aes(V1_percentile, distance),color="black")+
-        geom_label(x=quantile(plot_V1$V1_percentile, 0.2), y=quantile(plot_V1$focals_with_one_potential_trio, 0.5), label=V1_percentile_threshold)+
+        #geom_label(x=quantile(plot_V1$V1_percentile, 0.2), y=quantile(plot_V1$focals_with_one_potential_trio, 0.5), label=V1_percentile_threshold)+
         ylab("")+
         geom_point(mapping=aes(x=V1_percentile_threshold,
-                              y=max(plot_V1_calc$focals_with_one_potential_trio)), color="blue")
+                              y=max(plot_V1_calc$focals_with_one_potential_trio[plot_V1_calc$V1_percentile==V1_percentile_threshold])), color="blue")
         ggsave(filename = paste(vcf,"-",pedigree_file_add_name,"-TrioMendelErrorsPercentileThreshold.png",sep=""), plot = p)
 
         p<-ggplot(plot_V1_mean, aes(V1_V1_mean,focals_with_one_potential_trio))+
         geom_line(color="blue")+
         geom_line(mapping=aes(V1_V1_mean, focals_with_more_than_one_potential_trio),color="red")+
         #geom_line(mapping=aes(V1_V1_mean, distance),color="black")+
-        geom_label(x=quantile(plot_V1_mean$V1_V1_mean, 0.2), y=quantile(plot_V1_mean$focals_with_one_potential_trio, 0.5), label=V1_V1_mean_threshold)+
+        #geom_label(x=quantile(plot_V1_mean$V1_V1_mean, 0.2), y=quantile(plot_V1_mean$focals_with_one_potential_trio, 0.5), label=V1_V1_mean_threshold)+
         ylab("")+
         geom_point(mapping=aes(x=V1_V1_mean_threshold,
-                              y=max(plot_V1_mean_calc$focals_with_one_potential_trio)), color="blue")
+                              y=max(plot_V1_mean_calc$focals_with_one_potential_trio[plot_V1_mean_calc$V1_V1_mean==V1_V1_mean_threshold])), color="blue")
         ggsave(filename = paste(vcf,"-",pedigree_file_add_name,"-TrioMendelErrorsComparedToMeanThreshold.png",sep=""), plot = p)
         }
+    
+    system(command=paste("echo ", V1_percentile_threshold, " > ", vcf,"-",pedigree_file_add_name,"-TrioMendelErrorsPercentileThreshold.txt",sep=""), intern=TRUE)
+    
+    system(command=paste("echo ", V1_V1_mean_threshold, " > ", vcf,"-",pedigree_file_add_name,"-TrioMendelErrorsComparedToMeanThreshold.txt",sep=""), intern=TRUE)
+    
+    fwrite(plot_V1, paste(vcf,"-",pedigree_file_add_name,"-TrioMendelErrorsPercentileThreshold.csv.gz",sep=""))
+    fwrite(plot_V1_mean, paste(vcf,"-",pedigree_file_add_name,"-TrioMendelErrorsComparedToMeanThreshold.csv.gz",sep=""))
     
     return(list(V1_V1_mean_threshold, V1_percentile_threshold))
     
     }
 
-IBD0_row_mean=function(x,mendels_123123)
+value_row_mean=function(x,value,mendels_123123)
     {
-    return(as.numeric(mean(as.numeric(t(mendels_123123[x,which(endsWith(colnames(mendels_123123), "_IBD0"))])), na.rm = TRUE)))
+    return(as.numeric(mean(as.numeric(t(mendels_123123[x,which(endsWith(colnames(mendels_123123), value))])), na.rm = TRUE)))
 }
-
-IBD0_IQR_row_mean=function(x,mendels_123123)
-    {
-    return(as.numeric(mean(as.numeric(t(mendels_123123[x,which(endsWith(colnames(mendels_123123), "_IBD0_IQR"))])), na.rm = TRUE)))
-}
-
-IBD0_sd_row_mean=function(x,mendels_123123)
-    {
-    return(as.numeric(mean(as.numeric(t(mendels_123123[x,which(endsWith(colnames(mendels_123123), "_IBD0_sd"))])), na.rm = TRUE)))
-}
-
-homo_mendel_rel_row_mean=function(x,mendels_123123)
-    {
-    return(as.numeric(mean(as.numeric(t(mendels_123123[x,which(endsWith(colnames(mendels_123123), "_homo_mendel_rel"))])), na.rm = TRUE)))
-}
-
 
 DeeperTrioComparison=function(mendels_tmp)
     {
-    PO_columns=c("IBD0","IBD0_IQR","homo_mendel_rel")
+    PO_columns=c("IBD0","IBD0_IQR","homo_mendel_rel")[c(!no_IBD0,!no_IQR,!no_HM)]
     
-    if(no_IQR==TRUE)
-        {
-        PO_columns=c("IBD0","homo_mendel_rel")
-        }
+    
     
     mendels_tmp$O=as.character(mendels_tmp$O)
     mendels_tmp$P1=as.character(mendels_tmp$P1)
@@ -1381,10 +1388,31 @@ DeeperTrioComparison=function(mendels_tmp)
     colnames(mendels_tmp)[which(colnames(mendels_tmp) %in% PO_columns)]=paste("Nr3_",colnames(mendels_tmp)[which(colnames(mendels_tmp) %in% PO_columns)],sep="")
     mendels_tmp=left_join(mendels_tmp, df[,c("ID1","ID2", PO_columns)], by=c("O"="ID2", "P2"="ID1"))
     colnames(mendels_tmp)[which(colnames(mendels_tmp) %in% PO_columns)]=paste("Nr4_",colnames(mendels_tmp)[which(colnames(mendels_tmp) %in% PO_columns)],sep="")
+    
+    if(ExtraVariables!="none")
+        {
+        
+        mendels_tmp=left_join(mendels_tmp, ExtraVariables_df, by=c("O"="ID1", "P1"="ID2"))
+    colnames(mendels_tmp)[which(colnames(mendels_tmp) %in% colnames(ExtraVariables_df[3:ncol(ExtraVariables_df)]))]=paste("Nr1_",colnames(mendels_tmp)[which(colnames(mendels_tmp) %in% colnames(ExtraVariables_df[3:ncol(ExtraVariables_df)]))],sep="")
+    mendels_tmp=left_join(mendels_tmp, ExtraVariables_df, by=c("O"="ID2", "P1"="ID1"))
+    colnames(mendels_tmp)[which(colnames(mendels_tmp) %in% colnames(ExtraVariables_df[3:ncol(ExtraVariables_df)]))]=paste("Nr2_",colnames(mendels_tmp)[which(colnames(mendels_tmp) %in% colnames(ExtraVariables_df[3:ncol(ExtraVariables_df)]))],sep="")
+    mendels_tmp=left_join(mendels_tmp, ExtraVariables_df, by=c("O"="ID1", "P2"="ID2"))
+    colnames(mendels_tmp)[which(colnames(mendels_tmp) %in% colnames(ExtraVariables_df[3:ncol(ExtraVariables_df)]))]=paste("Nr3_",colnames(mendels_tmp)[which(colnames(mendels_tmp) %in% colnames(ExtraVariables_df[3:ncol(ExtraVariables_df)]))],sep="")
+    mendels_tmp=left_join(mendels_tmp, ExtraVariables_df, by=c("O"="ID2", "P2"="ID1"))
+    colnames(mendels_tmp)[which(colnames(mendels_tmp) %in% colnames(ExtraVariables_df[3:ncol(ExtraVariables_df)]))]=paste("Nr4_",colnames(mendels_tmp)[which(colnames(mendels_tmp) %in% colnames(ExtraVariables_df[3:ncol(ExtraVariables_df)]))],sep="")
+        
+        for(evnc in 3:ncol(ExtraVariables_df)){
+            
+            mendels_tmp[,paste(colnames(ExtraVariables_df)[evnc],"_mean",sep="")]=unlist(mclapply(1:nrow(mendels_tmp), value_row_mean,  value=colnames(ExtraVariables_df)[evnc], mendels_123123=mendels_tmp, mc.cores = max_cores))
+            
+            }
+        
+        }
 
-    mendels_tmp$IBD0_mean=unlist(mclapply(1:nrow(mendels_tmp), IBD0_row_mean, mendels_123123=mendels_tmp, mc.cores = max_cores))
-    mendels_tmp$IBD0_IQR_mean=unlist(mclapply(1:nrow(mendels_tmp), IBD0_IQR_row_mean, mendels_123123=mendels_tmp, mc.cores = max_cores))
-    mendels_tmp$homo_mendel_rel_mean=unlist(mclapply(1:nrow(mendels_tmp), homo_mendel_rel_row_mean, mendels_123123=mendels_tmp, mc.cores = max_cores))
+    
+    mendels_tmp$IBD0_mean=unlist(mclapply(1:nrow(mendels_tmp), value_row_mean, value="IBD0", mendels_123123=mendels_tmp, mc.cores = max_cores))
+    mendels_tmp$IBD0_IQR_mean=unlist(mclapply(1:nrow(mendels_tmp), value_row_mean, value="IBD0_IQR",  mendels_123123=mendels_tmp, mc.cores = max_cores))
+    mendels_tmp$homo_mendel_rel_mean=unlist(mclapply(1:nrow(mendels_tmp), value_row_mean, value="homo_mendel_rel",  mendels_123123=mendels_tmp, mc.cores = max_cores))
 
     mendels_tmp_trio_suspects=subset(mendels_tmp, V1_V1_mean <= V1_V1_mean_threshold | V1_percentile <= V1_percentile_threshold)
 
@@ -1574,8 +1602,8 @@ FindGoodTrios=function(pedigree, Dup_plus_ID_cols)
                         }else
                         {
                         print("Unclear trio choice.")
-                        pedigree$Father[find_pedigree_row(data$O)]=NA
-                        pedigree$Mother[find_pedigree_row(data$O)]=NA
+                        pedigree$Father[find_pedigree_row(mendels_trio_suspects$O[i])]=NA
+                        pedigree$Mother[find_pedigree_row(mendels_trio_suspects$O[i])]=NA
                         }
                 }
             }
@@ -1767,11 +1795,8 @@ FindSingleParent=function()
               
               
               
-              criteria=c("IBD0", "IBD0_IQR", "homo_mendel_rel")
-                if(no_IQR==TRUE)
-                    {
-                    criteria=c("IBD0", "homo_mendel_rel")
-                    }
+              criteria=c("IBD0", "IBD0_IQR", "homo_mendel_rel")[c(!no_IBD0, !no_IQR, !no_HM)]
+                
               df_subset_M=df[(df$ID1 == df$ID1[which_to_look_at[i]] & 
                                 df$ID2 %in% all_PO_ID1[which(pedigree$Sex[unlist(lapply(all_PO_ID1, FUN=find_pedigree_row))] == "M")]) |
                                (df$ID2 == df$ID1[which_to_look_at[i]] & 
@@ -1790,6 +1815,21 @@ FindSingleParent=function()
                   df_subset_M$score[which(df_subset_M[,crit] == min(df_subset_M[,crit]))]=
                     df_subset_M$score[which(df_subset_M[,crit] == min(df_subset_M[,crit]))]+1
                 }
+              if(ExtraVariables!="none")
+                  {
+                  
+                  for(evdf in 3:ncol(ExtraVariables_df)){
+ExtraVariables_df_subset_M=subset(ExtraVariables_df, (paste(ID1,ID2) %in% paste(df_subset_M$ID1,df_subset_M$ID2) | (paste(ID1,ID2) %in% paste(df_subset_M$ID2,df_subset_M$ID1))))
+minsub=ExtraVariables_df_subset_M[ExtraVariables_df_subset_M[,evdf] == min(ExtraVariables_df_subset_M[,evdf]),]
+                                                                            
+                      df_subset_M$score[paste(df_subset_M$ID1,df_subset_M$ID2) %in% paste(minsub$ID1,minsub$ID2) | 
+                                       paste(df_subset_M$ID1,df_subset_M$ID2) %in% paste(minsub$ID2,minsub$ID1) ]=
+                        df_subset_M$score[paste(df_subset_M$ID1,df_subset_M$ID2) %in% paste(minsub$ID1,minsub$ID2) | 
+                                       paste(df_subset_M$ID1,df_subset_M$ID2) %in% paste(minsub$ID2,minsub$ID1) ]+1
+                      
+                      }
+                  
+                  }
                 df_subset_M=subset(df_subset_M, score == max(df_subset_M$score, na.rm=TRUE))
               }
               if(nrow(df_subset_F)>1)
@@ -1801,6 +1841,23 @@ FindSingleParent=function()
                   df_subset_F$score[which(df_subset_F[,crit] == min(df_subset_F[,crit]))]=
                     df_subset_F$score[which(df_subset_F[,crit] == min(df_subset_F[,crit]))]+1
                 }
+                  
+                  if(ExtraVariables!="none")
+                  {
+                  
+                  for(evdf in 3:ncol(ExtraVariables_df)){
+                      ExtraVariables_df_subset_F=subset(ExtraVariables_df, (paste(ID1,ID2) %in% paste(df_subset_F$ID1,df_subset_F$ID2) | (paste(ID1,ID2) %in% paste(df_subset_F$ID2,df_subset_F$ID1))))
+minsub=ExtraVariables_df_subset_F[ExtraVariables_df_subset_F[,evdf] == min(ExtraVariables_df_subset_F[,evdf]),]
+                                                                            
+                      df_subset_F$score[paste(df_subset_F$ID1,df_subset_F$ID2) %in% paste(minsub$ID1,minsub$ID2) | 
+                                       paste(df_subset_F$ID1,df_subset_F$ID2) %in% paste(minsub$ID2,minsub$ID1) ]=
+                        df_subset_F$score[paste(df_subset_F$ID1,df_subset_F$ID2) %in% paste(minsub$ID1,minsub$ID2) | 
+                                       paste(df_subset_F$ID1,df_subset_F$ID2) %in% paste(minsub$ID2,minsub$ID1) ]+1
+                      
+                      }
+                  
+                  }
+                  
                 df_subset_F=subset(df_subset_F, score == max(df_subset_F$score, na.rm=TRUE))
               }
               
@@ -1808,7 +1865,7 @@ FindSingleParent=function()
               
               all_PO_ID1=all_PO_ID1[all_PO_ID1 %in% filtered_PO]
               
-              if(length(all_PO_ID2)>0)
+              if(length(all_PO_ID1)>0)
               {
               for(po_cur in 1:length(all_PO_ID1))
               {
@@ -1860,11 +1917,8 @@ FindSingleParent=function()
               
               print(i)
               
-              criteria=c("IBD0", "IBD0_IQR", "homo_mendel_rel")
-                if(no_IQR==TRUE)
-                    {
-                    criteria=c("IBD0", "homo_mendel_rel")
-                    }
+              criteria=c("IBD0", "IBD0_IQR", "homo_mendel_rel")[c(!no_IBD0, !no_IQR, !no_HM)]
+                
               df_subset_M=df[(df$ID1 == df$ID2[which_to_look_at[i]] & 
                                 df$ID2 %in% all_PO_ID2[which(pedigree$Sex[unlist(lapply(all_PO_ID2, FUN=find_pedigree_row))] == "M")]) |
                                (df$ID2 == df$ID2[which_to_look_at[i]] & 
@@ -1883,6 +1937,23 @@ FindSingleParent=function()
                   df_subset_M$score[which(df_subset_M[,crit] == min(df_subset_M[,crit]))]=
                     df_subset_M$score[which(df_subset_M[,crit] == min(df_subset_M[,crit]))]+1
                 }
+                  
+                  if(ExtraVariables!="none")
+                  {
+                  
+                  for(evdf in 3:ncol(ExtraVariables_df)){
+ExtraVariables_df_subset_M=subset(ExtraVariables_df, (paste(ID1,ID2) %in% paste(df_subset_M$ID1,df_subset_M$ID2) | (paste(ID1,ID2) %in% paste(df_subset_M$ID2,df_subset_M$ID1))))
+minsub=ExtraVariables_df_subset_M[ExtraVariables_df_subset_M[,evdf] == min(ExtraVariables_df_subset_M[,evdf]),]
+                                                                            
+                      df_subset_M$score[paste(df_subset_M$ID1,df_subset_M$ID2) %in% paste(minsub$ID1,minsub$ID2) | 
+                                       paste(df_subset_M$ID1,df_subset_M$ID2) %in% paste(minsub$ID2,minsub$ID1) ]=
+                        df_subset_M$score[paste(df_subset_M$ID1,df_subset_M$ID2) %in% paste(minsub$ID1,minsub$ID2) | 
+                                       paste(df_subset_M$ID1,df_subset_M$ID2) %in% paste(minsub$ID2,minsub$ID1) ]+1
+                      
+                      }
+                  
+                  }
+                  
                 df_subset_M=subset(df_subset_M, score == max(df_subset_M$score, na.rm=TRUE))
               }
               if(nrow(df_subset_F)>1)
@@ -1894,6 +1965,25 @@ FindSingleParent=function()
                   df_subset_F$score[which(df_subset_F[,crit] == min(df_subset_F[,crit]))]=
                     df_subset_F$score[which(df_subset_F[,crit] == min(df_subset_F[,crit]))]+1
                 }
+                  
+                  
+                  if(ExtraVariables!="none")
+                  {
+                  
+                  for(evdf in 3:ncol(ExtraVariables_df)){
+                      ExtraVariables_df_subset_F=subset(ExtraVariables_df, (paste(ID1,ID2) %in% paste(df_subset_F$ID1,df_subset_F$ID2) | (paste(ID1,ID2) %in% paste(df_subset_F$ID2,df_subset_F$ID1))))
+minsub=ExtraVariables_df_subset_F[ExtraVariables_df_subset_F[,evdf] == min(ExtraVariables_df_subset_F[,evdf]),]
+                                                                            
+                      df_subset_F$score[paste(df_subset_F$ID1,df_subset_F$ID2) %in% paste(minsub$ID1,minsub$ID2) | 
+                                       paste(df_subset_F$ID1,df_subset_F$ID2) %in% paste(minsub$ID2,minsub$ID1) ]=
+                        df_subset_F$score[paste(df_subset_F$ID1,df_subset_F$ID2) %in% paste(minsub$ID1,minsub$ID2) | 
+                                       paste(df_subset_F$ID1,df_subset_F$ID2) %in% paste(minsub$ID2,minsub$ID1) ]+1
+                      
+                      }
+                  
+                  }
+                  
+                  
                 df_subset_F=subset(df_subset_F, score == max(df_subset_F$score, na.rm=TRUE))
               }
               
@@ -1979,18 +2069,16 @@ prettyUpTrioOutput=function(x)
 }
 
 if(args[1]=="KAISER"){
-    print("Yes, this was the original name of the method, but please provide a settings file instead.")
-    stop("No settings file.")
+    stop("Shattered! Please provide a settings file instead.")
     }
 
 source(args[1])
 
+LowTrioMode=IntermediateSamplingMode
+when_PO_error=APO
+
 SbatchOrInline=1
 
-if(!exists("no_IQR"))
-    {
-    no_IQR=FALSE
-    }
 
 library(readr)
 library(stringr)
@@ -2016,7 +2104,7 @@ print(system(command=paste("export TMPDIR=",folder,sep=""), intern=TRUE))
 
 print(folder)
 print(vcf)
-print(paste("when_PO_error=",when_PO_error,sep=""))
+print(paste("APO=",when_PO_error,sep=""))
 
 if(Birthdate_File != "")
         {
@@ -2038,7 +2126,7 @@ if(file.exists(paste(vcf,".csi",sep="")))
    
    
 
-if(previously_computed != TRUE)
+if(previously_computed != TRUE & (no_IBD0 == FALSE | no_IQR == FALSE))
     {
     print("Finding unique chromosomes in VCF.")
     chromosomes=getChrsInFile()
@@ -2065,10 +2153,27 @@ if(previously_computed != TRUE)
         SbatchGetIndividuals()
     if(SbatchOrInline==1)
         InlineGetIndividuals()
+    
+    
+  
         
 }
 
 individuals=readIndividuals()
+print(head(individuals))
+                                                                            
+      if(no_IBD0 == TRUE & no_IQR == TRUE){
+        
+        # if truffle did not run, I need to create the ID1,ID2 df myself for compatibility
+        
+        df=expand.grid(ID1=unique(as.character(individuals$V1)), ID2=unique(as.character(individuals$V1)), stringsAsFactors = FALSE)
+        df=subset(df, ID1 != ID2)
+        df$ID1_order=as.numeric(factor(df$ID1), levels=unique(c(df$ID1,df$ID2)))
+        df$ID2_order=as.numeric(factor(df$ID2), levels=unique(c(df$ID1,df$ID2)))
+        df=subset(df, ID1_order < ID2_order)
+        df=subset(df, select=c("ID1","ID2"))
+        
+        }
 
 if(previously_computed != TRUE)
     {
@@ -2080,7 +2185,7 @@ if(previously_computed != TRUE)
     #individuals=ReadIndividualLociCounts()
     }
 
-if(previously_computed != TRUE)
+if(previously_computed != TRUE & no_IQR == FALSE)
     {
     print("Incorporating IBD IQR")
     print(system(command="echo Start && date", intern=TRUE))
@@ -2103,7 +2208,7 @@ if(previously_computed == TRUE & previously_computed_homozygous_mendel != TRUE)
     df=subset(df, !duplicated(paste(ID1,ID2)))
     }
 
-if(previously_computed != TRUE | previously_computed_homozygous_mendel != TRUE)
+if((previously_computed != TRUE | previously_computed_homozygous_mendel != TRUE) & no_HM == FALSE)
     {
     print("Calculating homozygous errors.")
     print(system(command="echo Start && date", intern=TRUE))
@@ -2128,7 +2233,7 @@ if(previously_computed == TRUE & previously_computed_homozygous_mendel == TRUE)
     df=subset(df, !duplicated(paste(ID1,ID2)))
     }
 
-if(!("IBD0_IQR" %in% colnames(df)))
+if(!("IBD0_IQR" %in% colnames(df)) & no_IQR == FALSE)
 {
     df$IBD0_IQR=unlist(lapply(1:nrow(df), IBD0_row_IQR))
     print("Saving progress.")
@@ -2147,9 +2252,54 @@ print("Calculating thresholds.")
 print(system(command="echo Start && date", intern=TRUE))
 if(previously_computed_three_thresholds==FALSE)
     {
-    IBD0_threshold=computeAndPlotIBD0threshold()
-    IBD0_IQR_threshold=computeAndPlotIBD0IQRthreshold()
-    homo_mendel_rel_threshold=computeAndPlothomomendelrelthreshold()
+    if(no_IBD0!=TRUE)
+        {
+        IBD0_threshold=ComputeAndPlotValueThreshold(df$IBD0, "IBD0", 10000, df)
+        }else{
+        IBD0_threshold=1
+        }
+    if(no_IQR!=TRUE)
+        {
+        IBD0_IQR_threshold=ComputeAndPlotValueThreshold(subset(df, IBD0 < 0.5)$IBD0_IQR, "IBD0_IQR", 10000, subset(df, IBD0 < 0.5))
+        }else{
+        IBD0_IQR_threshold=1
+        }
+    if(no_HM!=TRUE)
+        {
+        homo_mendel_rel_threshold=ComputeAndPlotValueThreshold(df$homo_mendel_rel, "homo_mendel_rel", 10000, df)
+        }else{
+        homo_mendel_rel_threshold=1
+        }
+    
+    if(ExtraVariables=="none" & no_IBD0 == TRUE & no_IQR == TRUE & no_HM == TRUE)
+        {
+        stop("No thresholding variables available. All deactivated.")
+        }
+    
+    if(ExtraVariables!="none")
+        {
+        ExtraVariables_df=fread(ExtraVariables, data.table=FALSE)
+        if(ncol(ExtraVariables_df) >= 3)
+            {
+            # continue
+            if(colnames(ExtraVariables_df)[1:2]==c("ID1","ID2")){
+                for(col in 3:ncol(ExtraVariables_df)){
+                    ethr=ComputeAndPlotValueThreshold(ExtraVariables_df[,col], colnames(ExtraVariables_df)[col], 10000, ExtraVariables_df)
+                    if(col == 3)
+                        {
+                        ExtraVariables_thr=ethr
+                        }else{
+                        ExtraVariables_thr=c(ExtraVariables_thr, ethr)
+                        }
+                    }
+                }else{
+                stop("ID1 and ID2 were not the first column names in the extra variables df; Aborting.")
+                }
+            }else{
+            stop("Not enough columns in the extra variable df; will ignore the setting.")
+            }
+        }
+    
     }else{
     IBD0_threshold=as.numeric(readLines(paste(vcf,"-",pedigree_file_add_name,"-IBD0_threshold.txt",sep="")))
     IBD0_IQR_threshold=as.numeric(readLines(paste(vcf,"-",pedigree_file_add_name,"-IBD0_IQR_threshold.txt",sep="")))
@@ -2159,7 +2309,12 @@ if(previously_computed_three_thresholds==FALSE)
     print(homo_mendel_rel_threshold)
     }
 print(system(command="echo Stop && date", intern=TRUE))
-PlotIBD2DPThreshold()
+if(no_IBD0 == TRUE & no_IQR == TRUE)
+    {"No IBD computed, cannot detect duplicate samples / twins."}else{
+    
+    PlotIBD2DPThreshold()
+    
+    }
 print("Classiying relationships.")
 df=ClassifyRelationshipCandidates(df)
 
@@ -2176,70 +2331,105 @@ if(Genomics_Sex_File!="")
         }else{
             Genomics_Sex=data.frame(indv=unique(c(df$ID1,df$ID2)),Genomics_Sex="Q",stringsAsFactors=FALSE)
         }
+                           
+df$ID1=as.character(df$ID1)
+df$ID2=as.character(df$ID2)
 
-print("Finding Mendelian trio errors.")
-print(system(command="echo Start && date", intern=TRUE))
-focals=unique(c(df$ID1[df$suspect=="PO" & !is.na(df$suspect)], df$ID2[df$suspect=="PO" & !is.na(df$suspect)]))
-#if(SbatchOrInline==2)
-    #SbatchMendelTrios(Genomics_Sex, focals, df)
-#if(SbatchOrInline==1)
-trios_file=InlineMendelTrios(Genomics_Sex, focals, df)
+if(NoTrioCalculation==FALSE)
+    {
+    print("Finding Mendelian trio errors.")
+    print(system(command="echo Start && date", intern=TRUE))
+    focals=unique(c(df$ID1[df$suspect=="PO" & !is.na(df$suspect)], df$ID2[df$suspect=="PO" & !is.na(df$suspect)]))
+    #if(SbatchOrInline==2)
+        #SbatchMendelTrios(Genomics_Sex, focals, df)
+    #if(SbatchOrInline==1)
+    trios_file=InlineMendelTrios(Genomics_Sex, focals, df)
+    
+    if(!is.na(trios_file))
+        {
+        print("Reading Mendelian trio data.")
 
-print("Reading Mendelian trio data.")
-out=GetMendelTriosData(trios_file)
-all_mendel_summary=out[[2]]
-df=out[[1]]
-print(system(command="echo Stop && date", intern=TRUE))
-print("Finding duplicate samples.")
-pedigree=SearchForDuplicateSamples()
+        all_mendel_summary=GetMendelTriosData(trios_file)
+        print(system(command="echo Stop && date", intern=TRUE))
+    }
+    }
+if(no_IBD0 != TRUE | no_IQR != TRUE)
+    {
+    
+    print("Finding duplicate samples.")
+    pedigree=SearchForDuplicateSamples()
+    
+}
 Dup_plus_ID_cols=c("ID", colnames(pedigree)[which(startsWith(colnames(pedigree), "Dup"))])
 for(i in Dup_plus_ID_cols)
     {
     if(sum(!is.na(pedigree[, i]))==0)
         {Dup_plus_ID_cols=Dup_plus_ID_cols[-1*which(Dup_plus_ID_cols==i)]}
 }
-print("Making Mendelian data frame.")
-print(system(command="echo Start && date", intern=TRUE))
-which_to_look_at=which(!is.na(df$suspect) & df$suspect=="PO")
-PO_test_IDs=unique(c(df$ID1[which_to_look_at],df$ID2[which_to_look_at]))
-no_dups=all(Dup_plus_ID_cols=="ID")
-#mendels=GatherDeepMendelianData()
-mendels=bind_rows(mclapply(PO_test_IDs, FUN=GatherDeepMendelianData, no_dups=no_dups, mc.cores = max_cores))
-mendels=subset(mendels,!is.na(V1))
-mendels=unique(mendels)
-mendels$V1_percentile=ecdf(as.numeric(mendels$V1))((as.numeric(mendels$V1)))
-mendels$V1_V1_mean=mendels$V1/(mendels$V1_mean)
-print(system(command="echo Stop && date", intern=TRUE))
-fwrite(mendels, paste(vcf,"-",pedigree_file_add_name,"-mendels.csv",sep=""))
-print("Finding Mendelian thresholds.")
-print(system(command="echo Start && date", intern=TRUE))
-out=CompareMendelianErrorsForThresholds()
-V1_V1_mean_threshold=out[[1]]
-V1_percentile_threshold=out[[2]]
-print(system(command="echo Stop && date", intern=TRUE))
-print("Comparing putative trios.")
-print(system(command="echo Start && date", intern=TRUE))
-out=DeeperTrioComparison(mendels)
-mendels=out
-mendels_trio_suspects=subset(mendels, (!is.na(V1_V1_mean)&V1_V1_mean <= V1_V1_mean_threshold) | V1_percentile <= V1_percentile_threshold)
-print("Finding good trios.")
-pedigree=FindGoodTrios(pedigree,Dup_plus_ID_cols)
-print(system(command="echo Stop && date", intern=TRUE))
-df$suspect_PO_strict=FALSE
-if(no_IQR==TRUE)
+if(NoTrioCalculation==FALSE & !is.na(trios_file))
     {
-    df$suspect_PO_strict[df$IBD0 <= IBD0_threshold & df$homo_mendel_rel <= homo_mendel_rel_threshold]=TRUE
-    }else{
+    print("Making Mendelian data frame.")
+    print(system(command="echo Start && date", intern=TRUE))
+    which_to_look_at=which(!is.na(df$suspect) & df$suspect=="PO")
+    PO_test_IDs=unique(c(df$ID1[which_to_look_at],df$ID2[which_to_look_at]))
+    no_dups=all(Dup_plus_ID_cols=="ID")
+    #mendels=GatherDeepMendelianData()
+    mendels=bind_rows(mclapply(PO_test_IDs, FUN=GatherDeepMendelianData, no_dups=no_dups, mc.cores = max_cores))
+    mendels=subset(mendels,!is.na(V1))
+    mendels=unique(mendels)
+    mendels$V1_percentile=ecdf(as.numeric(mendels$V1))((as.numeric(mendels$V1)))
+    mendels$V1_V1_mean=mendels$V1/(mendels$V1_mean)
+    print(system(command="echo Stop && date", intern=TRUE))
+    fwrite(mendels, paste(vcf,"-",pedigree_file_add_name,"-mendels.csv",sep=""))
+    print("Finding Mendelian thresholds.")
+    print(system(command="echo Start && date", intern=TRUE))
+    out=CompareMendelianErrorsForThresholds()
+    V1_V1_mean_threshold=out[[1]]
+    V1_percentile_threshold=out[[2]]
+    print(system(command="echo Stop && date", intern=TRUE))
+    print("Comparing putative trios.")
+    print(system(command="echo Start && date", intern=TRUE))
+    mendels=DeeperTrioComparison(mendels)
+    mendels_trio_suspects=subset(mendels, (!is.na(V1_V1_mean)&V1_V1_mean <= V1_V1_mean_threshold) | V1_percentile <= V1_percentile_threshold)
+    print("Finding good trios.")
+    pedigree=FindGoodTrios(pedigree,Dup_plus_ID_cols)
+    print(system(command="echo Stop && date", intern=TRUE))
+    }
+df$suspect_PO_strict=FALSE
+
     df$suspect_PO_strict[df$IBD0 <= IBD0_threshold & df$IBD0_IQR <= IBD0_IQR_threshold & df$homo_mendel_rel <= homo_mendel_rel_threshold]=TRUE
+                                                                           
+if(ExtraVariables!="none")
+    {
+    
+    for(evdf in 3:ncol(ExtraVariables_df)){
+        if(evdf==3){
+            ExtraVariables_df_strict=ExtraVariables_df
+            }
+        ExtraVariables_df_strict=ExtraVariables_df_strict[ExtraVariables_df_strict[,evdf]<=ethr[evdf-2],]
+        
+        }
+    
+    
+    df$suspect_PO_strict=df$suspect_PO_strict & (paste(df$ID1,df$ID2) %in% paste(ExtraVariables_df_strict$ID1,ExtraVariables_df_strict$ID2) | paste(df$ID1,df$ID2) %in% paste(ExtraVariables_df_strict$ID2,ExtraVariables_df_strict$ID1))
+    
     }
 
 which_to_look_at=which(df$suspect_PO_strict)
-print("Searching for single parents to fill into pedigree.")
-print(system(command="echo Start && date", intern=TRUE))
-pedigree=FindSingleParent()
-print(system(command="echo Stop && date", intern=TRUE))
+if(NoTrioCalculation==FALSE & !is.na(trios_file))
+    {
+    print("Searching for single parents to fill into pedigree.")
+    print(system(command="echo Start && date", intern=TRUE))
+    pedigree=FindSingleParent()
+    print(system(command="echo Stop && date", intern=TRUE))
+    }
 print("Outputting pedigree and remaining undirected POs.")
-OutSinglePOsUndirected=FindRemainingPOs()
+if(NoTrioCalculation==FALSE & !is.na(trios_file))
+    {
+    OutSinglePOsUndirected=FindRemainingPOs()
+    }else{
+    OutSinglePOsUndirected=df[which_to_look_at, c("ID1", "ID2")]
+    }
     
 if(previously_computed!=TRUE | previously_computed_homozygous_mendel != TRUE)
     {
@@ -2248,7 +2438,7 @@ if(previously_computed!=TRUE | previously_computed_homozygous_mendel != TRUE)
     system(command=paste("gzip -f ",vcf,"-truffle.ibd.iqr",sep=""), intern = TRUE) 
     }
 
-if(file.exists(paste(folder,vcf,"-",pedigree_file_add_name, "-trios-choices.csv", sep="")))
+if(NoTrioCalculation==FALSE & !is.na(trios_file) & file.exists(paste(folder,vcf,"-",pedigree_file_add_name, "-trios-choices.csv", sep="")))
     {
     mendels_trio_output=fread(paste(folder,vcf,"-",pedigree_file_add_name, "-trios-choices.csv", sep=""), data.table=FALSE)
     mendels_trio_output=prettyUpTrioOutput(mendels_trio_output)
