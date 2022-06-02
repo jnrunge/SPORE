@@ -2,7 +2,8 @@ trufflepath="/moto/ziab/users/jr3950/software/TRUFFLE/truffle/truffle" # where i
 truffle_maf=0.0001 # What is the MAF setting you want to set on TRUFFLE?
 truffle_missing=0.95 # What is the missing % setting you want to set on TRUFFLE?
 
-when_PO_error=1 # this is the assumed number of offspring that an individual has. think of it as an average number of offspring you expect individuals to have in this population. This metric essentially changes the sensitivity of the script. 
+APO=1 # this is the assumed number of offspring that an individual has. think of it as an average number of offspring you expect individuals to have in this population. This metric essentially changes the sensitivity of the script. 
+IntermediateSamplingMode=FALSE
 
 downsample_for_homozygous_mendel=0.01 # when the script looks for homozygous mendelian errors and loci overlap, what is the downsampling you want to apply to reduce memory load?
 
@@ -27,15 +28,16 @@ max_cores=1 # Some parts of the script need to know what maximum amount of CPU c
 trufflecpu=max_cores # Can TRUFFLE use the same amount of cores?
 
 
-##### SLURM
 
 # not fully implemented! do not use these settings
 
-SbatchOrInline=1 # 1 = Inline; 2 = Sbatch; This allows you to use the inbuild SLURM scheduling. If you are not using SLURM, then you should leave this at 1. SLURM will allow for better paralellization.
+##### Advanced: Change the variables that are used
 
-truffle_slurm_account="" # which slurm account to schedule tasks in
-homozygous_mendel_slurm_account=truffle_slurm_account # which slurm account to schedule tasks in
+no_IBD0=FALSE # disable
+no_IQR=FALSE # the use of 
+no_HM=FALSE # the default variables that SPORE uses
 
+ExtraVariables="none"
 
 ##### Advanced: Continue previous runs
 
