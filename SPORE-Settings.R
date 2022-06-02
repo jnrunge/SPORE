@@ -45,5 +45,5 @@ ExtraVariables="none" # this should be a path if you want to use this feature
 
 previously_computed=FALSE # Global setting to tell the script that any part of it was run already
 previously_computed_homozygous_mendel=FALSE # Define that the homozygous errors were already computed
-previously_computed_mendel=FALSE # Define that the trio Mendelian errors were already computed (Do not do this if you use a new 'when_PO_errorr' value)
+previously_computed_mendel=FALSE # Define that the trio Mendelian errors were already computed (Do not do this if you use a new 'APO' value)
 previously_computed_three_thresholds=FALSE # Use previously computed IBD0, IQR, and HM thresholds.
