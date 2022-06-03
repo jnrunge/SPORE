@@ -36,7 +36,7 @@ git clone https://github.com/jnrunge/SPORE.git
 
 ````
 
-and you can see if it runs using the example data (after having adjusted the path to truffle in the example configuration file `example_data/SPORE-Settings-for-example_data.R`.
+and you can see if it runs using the example data (after having adjusted the path to `truffle` in the example configuration file `example_data/SPORE-Settings-for-example_data.R`).
 
 ```bash
 
@@ -45,6 +45,8 @@ Rscript ../SPORE.R SPORE-Settings-for-example_data.R
 
 
 ````
+
+You can then compare results with `md5sum -c results/md5.txt`.
 
 ### Manual requirements
 
