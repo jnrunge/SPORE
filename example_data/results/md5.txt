@@ -12,4 +12,3 @@ d04491caaab672609c86cb4ce1bda03f  simulated_genotypes.vcf.gz-APO6-df_analyze_V1_
 867c353ae29a80f2111d9169a8e9b71e  simulated_genotypes.vcf.gz-APO6-homo_mendel_rel_threshold.txt
 8e78085a3ead657358fea82414ba2608  simulated_genotypes.vcf.gz-APO6-imputed_pedigree.ped
 67a8bad27ecf675d7a1e29f7d0b93015  simulated_genotypes.vcf.gz-APO6-mendels.csv
-17e890bc472425a2baa452d24aa9c943  simulated_genotypes.vcf.gz-truffle.ibd.iqr.gz
