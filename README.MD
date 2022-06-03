@@ -8,7 +8,7 @@ You must be reasonably sure that there is at least one parents-offspring trio am
 
 You need about 10,000 loci per chromosome for IBD0 IQR calculation, otherwise (if you disable IBD0 IQR calculation), you only need about 10,000 loci for IBD0 calculation or theoretically no minimum (though this is not tested) if you disable IBD0 and IBD0 IQR calculation (thus only relying on homozygous and Mendelian trio mismatches).
 
-You will likely need a Unix-based operating system (Linux) to fulfill the prerequisites for the script. 
+You will likely need a Unix-based operating system (Linux) to fulfill the prerequisites for the script, especially for *TRUFFLE*. If you opt not to use *TRUFFLE* for IBD calculation (by providing your own IBD data as input), then the script may run not just on Linux, but this was not tested, so should only be done by folks with more experience. Similarly, on Windows you can probably get away with using the Ubuntu shell installation that is possible since Windows 10.
 
 ### TRUFFLE
 
@@ -16,17 +16,49 @@ Tested with beta 1.38.
 
 Available at <https://adimitromanolakis.github.io/truffle-website/>.
 
-### BCFTOOLS
+
+
+## Installation
+
+To use the script, simply make sure you have all the prerequisites mentioned above and below, clone this repository, and edit the SPORE-Settings.R file to suit your needs.
+
+### Conda
+
+The easiest way to meet the prerequisites (except for *TRUFFLE*, see above) is to create an anaconda environment (<https://www.anaconda.com/products/distribution>), ideally with mamba (<https://mamba.readthedocs.io/en/latest/>) for faster speed, but you can write `conda` instead of `mamba` if you don't have it installed.
+
+```bash
+
+mamba create -n SPORE r-base=3.6.3 r-readr=1.4.0 r-stringr=1.4.0 r-dplyr=1.0.2 r-tidyr=1.1.2 r-data.table=1.13.2 r-ggplot2=3.3.2 r-naturalsort=0.1.3 r-sys=3.4 r-r.utils gzip bcftools=1.10 git
+
+conda activate SPORE
+
+git clone https://github.com/jnrunge/SPORE.git
+
+````
+
+and you can see if it runs using the example data (after having adjusted the path to truffle in the example configuration file `example_data/SPORE-Settings-for-example_data.R`.
+
+```bash
+
+cd SPORE/example_data
+Rscript ../SPORE.R SPORE-Settings-for-example_data.R
+
+
+````
+
+### Manual requirements
+
+#### BCFTOOLS
 
 Tested with 1.10.
 
 Available here: <https://github.com/samtools/bcftools>
 
-### R
+#### R
 
 The script requires R with some packages installed. The versions with which the script was tested are listed below.
 
-SPORE 1.0 was tested with / written for:
+SPORE was tested with / written for:
 
 * R 3.6.3
 * readr 1.4.0
@@ -38,10 +70,7 @@ SPORE 1.0 was tested with / written for:
 * naturalsort 0.1.3
 * sys 3.4
 * this.path 0.4.4
-
-## Installation
-
-To use the script, simply make sure you have all the prerequisites mentioned above, clone this repository, and edit the SPORE-Settings.R file to suit your needs.
+* R.utils
 
 ## Configuration
 

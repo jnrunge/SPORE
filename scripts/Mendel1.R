@@ -1,4 +1,3 @@
-#!/moto/ziab/users/jr3950/.conda/envs/my_conda2/bin/Rscript
 args = commandArgs(trailingOnly=TRUE)
 
 pureGT_file=args[1]

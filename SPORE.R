@@ -1,14 +1,14 @@
-version="2.1"
+version="2.1.1"
 print(paste("SPORE ",version,sep=""))
 print("Web: https://github.com/jnrunge/SPORE")
 args = commandArgs(trailingOnly=TRUE)
 if(length(args)==0){
     stop("Please provide your settings file as an argument to SPORE when you run it.")
     }
-if (!require('this.path')) install.packages('this.path'); library('this.path')
+if (suppressWarnings(!require('this.path'))) install.packages('this.path', repos='https://ftp.gwdg.de/pub/misc/cran/')
+library("this.path")
 KAISER_folder=this.dir()
 homozygous_mendel_script=paste(KAISER_folder,"/scripts/Mendel1.R",sep="")
-Fx_Mendel_Script=paste(KAISER_folder,"/scripts/Mendel2.R",sep="")
 previously_computed_three_thresholds=FALSE
 
 NoTrioCalculation=FALSE
@@ -315,7 +315,7 @@ InlineHomozygousMendel=function()
     
     
     homozygous_mendel_command=paste('zcat ',vcf,' | grep -v ^# | cut -f10- > ',vcf,'.pureGT;
-    cat ',vcf,'.pureGT | awk ',"'BEGIN {srand(1989)} !/^$/ { if (rand() <= ", str_replace(as.character(downsample_for_homozygous_mendel),"0",""),") print $0}'",' > ',vcf,'.pureGT.sample; ',homozygous_mendel_script,' ',vcf,'.pureGT.sample ',folder,' ',vcf,'.samples ', downsample_for_homozygous_mendel,' "', vcf,'"', sep="")
+    cat ',vcf,'.pureGT | awk ',"'BEGIN {srand(1989)} !/^$/ { if (rand() <= ", str_replace(as.character(downsample_for_homozygous_mendel),"0",""),") print $0}'",' > ',vcf,'.pureGT.sample; Rscript ',homozygous_mendel_script,' ',vcf,'.pureGT.sample ',folder,' ',vcf,'.samples ', downsample_for_homozygous_mendel,' "', vcf,'"', sep="")
     homozygous_mendel_command=gsub("\r?\n|\r", " ", homozygous_mendel_command)
     
     system(command=paste("rm -f ",vcf,"-homozygous_mendel_command.sh",sep=""), intern=TRUE)
