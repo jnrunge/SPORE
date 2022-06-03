@@ -2,12 +2,12 @@ trufflepath="/moto/ziab/users/jr3950/software/TRUFFLE/truffle/truffle" # where i
 truffle_maf=0.0001 # What is the MAF setting you want to set on TRUFFLE?
 truffle_missing=0.95 # What is the missing % setting you want to set on TRUFFLE?
 
-APO=1 # this is the assumed number of offspring that an individual has. think of it as an average number of offspring you expect individuals to have in this population. This metric essentially changes the sensitivity of the script. 
-IntermediateSamplingMode=FALSE
+APO=6 # this is the assumed number of offspring that an individual has. think of it as an average number of offspring you expect individuals to have in this population. This metric essentially changes the sensitivity of the script. 
+IntermediateSamplingMode=TRUE
 
-downsample_for_homozygous_mendel=0.01 # when the script looks for homozygous mendelian errors and loci overlap, what is the downsampling you want to apply to reduce memory load?
+downsample_for_homozygous_mendel=0.1 # when the script looks for homozygous mendelian errors and loci overlap, what is the downsampling you want to apply to reduce memory load?
 
-pedigree_file_add_name="APO1" # this will add a string to the output filenames, for example to 
+pedigree_file_add_name="APO6" # this will add a string to the output filenames, for example to 
 
 min_loci=1 # minimum number of loci that individuals must have to be included in the analysis. For all, set 1.
 
