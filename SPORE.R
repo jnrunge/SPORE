@@ -5,7 +5,7 @@ args = commandArgs(trailingOnly=TRUE)
 if(length(args)==0){
     stop("Please provide your settings file as an argument to SPORE when you run it.")
     }
-library(this.path)
+if (!require('this.path')) install.packages('this.path'); library('this.path')
 KAISER_folder=this.dir()
 homozygous_mendel_script=paste(KAISER_folder,"/scripts/Mendel1.R",sep="")
 Fx_Mendel_Script=paste(KAISER_folder,"/scripts/Mendel2.R",sep="")
@@ -112,7 +112,9 @@ InlineTruffle=function()
         out<-exec_wait(cmd=trufflepath, args=c("--vcf",paste(vcf,'.Chr',chr,'.vcf.gz',sep=""), "--cpu", trufflecpu, "--maf", truffle_maf, "--missing", truffle_missing, "--out", paste(vcf,'.Chr',chr,'.vcf.gz-truffle',sep="")), std_out=TRUE, std_err=TRUE)
         
         system(command=paste("rm -f ", vcf,'.Chr',chr,'.vcf.gz',sep=""), intern=TRUE)
-        
+	system(command=paste("rm -f ", vcf,'.Chr',chr,'.vcf.gz-truffle.options',sep=""), intern=TRUE)
+	system(command=paste("rm -f ", vcf,'.Chr',chr,'.vcf.gz.csi',sep=""), intern=TRUE)        
+
         #print(out$status)
         #print(as_text(out$stdout))
         #print(as_text(out$stderr))
@@ -278,7 +280,7 @@ IncorporateIBDandIQR=function(df)
 SbatchHomozygousMendel=function()
     {
     homozygous_mendel_command=paste('zcat ',vcf,' | grep -v ^# | cut -f10- > ',vcf,'.pureGT;
-    cat ',vcf,'.pureGT | awk ',"'BEGIN {srand()} !/^$/ { if (rand() <= ", str_replace(as.character(downsample_for_homozygous_mendel),"0",""),") print $0}'",' > ',vcf,'.pureGT.sample;
+    cat ',vcf,'.pureGT | awk ',"'BEGIN {srand(1989)} !/^$/ { if (rand() <= ", str_replace(as.character(downsample_for_homozygous_mendel),"0",""),") print $0}'",' > ',vcf,'.pureGT.sample;
     sbatch -t 0-119:59:00 --mem=',max_memory,' -c 1 -A ',homozygous_mendel_slurm_account,' --job-name=ManualMendelOverlappingLoci --wrap "',samtools_activation,'
     cd ',folder,';
     Rscript ',homozygous_mendel_script,' ',vcf,'.pureGT.sample ',folder,' ',vcf,'.samples ', downsample_for_homozygous_mendel,' "', vcf,'"', sep="")
@@ -313,7 +315,7 @@ InlineHomozygousMendel=function()
     
     
     homozygous_mendel_command=paste('zcat ',vcf,' | grep -v ^# | cut -f10- > ',vcf,'.pureGT;
-    cat ',vcf,'.pureGT | awk ',"'BEGIN {srand()} !/^$/ { if (rand() <= ", str_replace(as.character(downsample_for_homozygous_mendel),"0",""),") print $0}'",' > ',vcf,'.pureGT.sample; ',homozygous_mendel_script,' ',vcf,'.pureGT.sample ',folder,' ',vcf,'.samples ', downsample_for_homozygous_mendel,' "', vcf,'"', sep="")
+    cat ',vcf,'.pureGT | awk ',"'BEGIN {srand(1989)} !/^$/ { if (rand() <= ", str_replace(as.character(downsample_for_homozygous_mendel),"0",""),") print $0}'",' > ',vcf,'.pureGT.sample; ',homozygous_mendel_script,' ',vcf,'.pureGT.sample ',folder,' ',vcf,'.samples ', downsample_for_homozygous_mendel,' "', vcf,'"', sep="")
     homozygous_mendel_command=gsub("\r?\n|\r", " ", homozygous_mendel_command)
     
     system(command=paste("rm -f ",vcf,"-homozygous_mendel_command.sh",sep=""), intern=TRUE)
@@ -331,7 +333,8 @@ InlineHomozygousMendel=function()
     system(command=paste("rm -f ./",vcf,".pureGT.sample",sep=""), intern = TRUE)
     system(command=paste("gzip -f ",vcf,"-ahmm.new_overlap",sep=""), intern = TRUE)
     system(command=paste("gzip -f ",vcf,"-ahmm.mendel_homo_error",sep=""), intern = TRUE)
-    
+    system(command=paste("rm -f ",vcf,"-homozygous_mendel_command.sh",sep=""), intern=TRUE)
+
     }
 
 
@@ -2450,5 +2453,24 @@ fwrite(OutSinglePOsUndirected, file = paste(folder,vcf,"-",pedigree_file_add_nam
 fwrite(pedigree, file = paste(folder,vcf,"-",pedigree_file_add_name, "-imputed_pedigree.ped", sep=""), col.names = TRUE, row.names = FALSE, sep="\t", quote=FALSE)
 
 system(command=paste("rm -f ",vcf,pedigree_file_add_name,"_all_mendel.ped",sep=""), intern=TRUE)
+
+system(command=paste("rm -f ",vcf,"-ahmm.new_overlap.gz",sep=""), intern = TRUE)
+system(command=paste("rm -f ",vcf,"-ahmm.mendel_homo_error.gz",sep=""), intern = TRUE)
+
+system(command=paste("rm -f ",vcf,"-ahmm.new_overlap.bak",sep=""), intern = TRUE)
+
+system(command=paste("rm -f ",vcf,"-ahmm.mendel_homo_error.bak",sep=""), intern = TRUE)
+
+
+
+system(command=paste("rm -f ",vcf,"-truffle.ibd.gz",sep=""), intern = TRUE)
+
+system(command=paste("rm -f ",vcf,"-truffle.options",sep=""), intern = TRUE)
+
+
+system(command=paste("rm -f ",trios_file,sep=""), intern = TRUE)
+
+system(command=paste("rm -f ",trios_file,"*out",sep=""), intern = TRUE)
+
     
 print("Done.")
