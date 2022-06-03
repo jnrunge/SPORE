@@ -21,7 +21,7 @@ Genomics_Sex_File="" # needs columns "indv" and "Genomics_Sex" (F,M,Q)
 
 Birthdate_File="" # can be empty if you do not have birthdates! - columns "ID" and "Birthdate" (YYYY-MM-DD format)
 
-plots=TRUE # whether you want to produce plots that are saved in the same directory.
+plots=FALSE # whether you want to produce plots that are saved in the same directory.
 
 max_memory="2G" # Some parts of the script need to know what maximum amount of RAM you have available.
 max_cores=1 # Some parts of the script need to know what maximum amount of CPU cores you have available.
