@@ -382,7 +382,7 @@ ReadHomozygousMendel=function(df)
     
     before=nrow(df)
 
-    df=subset(df, ID1_loci >= min_loci & ID2_loci >= min_loci)
+    df=subset(df, ID1_loci >= min_loci & ID2_loci >= min_loci & overlapping_loci >= min_loci)
     
     print(paste("Removed ", before-nrow(df), " rows because of too few loci [set in configuration file].",sep=""))
     

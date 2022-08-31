@@ -10,7 +10,7 @@ downsample_for_homozygous_mendel=0.01 # when the script looks for homozygous men
 
 pedigree_file_add_name="" # this will add a string to the output filenames, for example to distinguish different runs with different settings on the same VCF
 
-min_loci=1 # minimum number of loci that individuals must have to be included in the analysis. For all, set 1.
+min_loci=1 # minimum number of loci that individuals must have to be included in the analysis. For all, set 1. This also precludes relationships with less than x overlapping loci from being investigated further
 
 IBD2_DP_Threshold=0.95 # At what IBD2 % should individuals be treated as duplicate samples? I have used 0.95 in a very inbred population successfully.
 
