@@ -1,4 +1,4 @@
-version="2.1.2"
+version="2.1.3"
 print(paste("SPORE ",version,sep=""))
 print("Web: https://github.com/jnrunge/SPORE")
 if(!exists("args") || length(args) == 0){
