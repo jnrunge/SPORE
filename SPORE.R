@@ -1293,33 +1293,33 @@ CompareMendelianErrorsForThresholds=function()
        
        
        
-       if(nrow(plot_V1_mean_calc)>1)
-           {
+       # if(nrow(plot_V1_mean_calc)>1)
+       #     {
            
-       for(ijk in 2:nrow(plot_V1_mean_calc)){
-           if(plot_V1_mean_calc$focals_with_one_potential_trio[ijk] < plot_V1_mean_calc$focals_with_one_potential_trio[ijk-1] |
-             plot_V1_mean_calc$focals_with_one_potential_trio[ijk] > AimPopFractionAPO)
-               {
-               break
-           }
+       # for(ijk in 2:nrow(plot_V1_mean_calc)){
+       #     if(plot_V1_mean_calc$focals_with_one_potential_trio[ijk] < plot_V1_mean_calc$focals_with_one_potential_trio[ijk-1] |
+       #       plot_V1_mean_calc$focals_with_one_potential_trio[ijk] > AimPopFractionAPO)
+       #         {
+       #         break
+       #     }
            
-           }
-           V1_V1_mean_threshold=plot_V1_mean_calc$V1_V1_mean[ijk-1]
-           }else
-           {
+       #     }
+       #     V1_V1_mean_threshold=plot_V1_mean_calc$V1_V1_mean[ijk-1]
+       #     }else
+       #     {
            
-           if(nrow(plot_V1_mean_calc)==1)
-               {
+       #     if(nrow(plot_V1_mean_calc)==1)
+       #         {
                
-               V1_V1_mean_threshold=plot_V1_mean_calc$V1_V1_mean[1]
+       #         V1_V1_mean_threshold=plot_V1_mean_calc$V1_V1_mean[1]
                
-               }else{
+       #         }else{
                
-               V1_V1_mean_threshold=-999
+       #         V1_V1_mean_threshold=-999
                
-               }
+       #         }
            
-           }
+       #     }
        
        }
     
