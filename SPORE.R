@@ -1265,23 +1265,30 @@ CompareMendelianErrorsForThresholds=function()
        
        if(nrow(plot_V1_calc)>1)
            {
+
+            # to avoid having a minor decrease affect the outcome dramatically
+            # the data is smoothed a little bit
+
+            plot_V1_calc_smooth<-plot_V1_calc
+            plot_V1_calc_smooth$focals_with_one_potential_trio<-predict(loess(focals_with_one_potential_trio~V1_percentile,plot_V1_calc_smooth, span=0.5))
+
            
-       for(ijk in 2:nrow(plot_V1_calc)){
-           if(plot_V1_calc$focals_with_one_potential_trio[ijk] < plot_V1_calc$focals_with_one_potential_trio[ijk-1] | 
-             plot_V1_calc$focals_with_one_potential_trio[ijk] > AimPopFractionAPO)
+       for(ijk in 2:nrow(plot_V1_calc_smooth)){
+           if(plot_V1_calc_smooth$focals_with_one_potential_trio[ijk] < plot_V1_calc_smooth$focals_with_one_potential_trio[ijk-1] | 
+             plot_V1_calc_smooth$focals_with_one_potential_trio[ijk] > AimPopFractionAPO)
                {
                break
            }
            
            }
-           V1_percentile_threshold=plot_V1_calc$V1_percentile[ijk-1]
+           V1_percentile_threshold=plot_V1_calc_smooth$V1_percentile[ijk-1]
            }else
            {
            
-           if(nrow(plot_V1_calc)==1)
+           if(nrow(plot_V1_calc_smooth)==1)
                {
                
-               V1_percentile_threshold=plot_V1_calc$V1_percentile[1]
+               V1_percentile_threshold=plot_V1_calc_smooth$V1_percentile[1]
                
                }else{
                
