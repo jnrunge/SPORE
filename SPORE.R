@@ -1,7 +1,10 @@
-version="2.1.1"
+version="2.1.2"
 print(paste("SPORE ",version,sep=""))
 print("Web: https://github.com/jnrunge/SPORE")
-args = commandArgs(trailingOnly=TRUE)
+if(!exists("args") || length(args) == 0){
+  args <- commandArgs(trailingOnly=TRUE)
+}
+print(args)
 if(length(args)==0){
     stop("Please provide your settings file as an argument to SPORE when you run it.")
     }
@@ -867,77 +870,71 @@ GetMendelTriosData=function(trios_file)
   return(all_mendel_summary)
 }
 
+mergePedigreeRows=function(pedigree, ID1, ID2){
+    # in case there are multiple duplicates, we need to make sure that 
+    # we don't remove rows that have other duplicate data, hence
+    # we need to copy duplicates from one row to the new row
+    
+                        removeRow=find_pedigree_row(ID2, pedigree)          
+                        IDs_to_move=t(pedigree[removeRow, which(colnames(pedigree)=="ID" | grepl("Dup",colnames(pedigree)))])    
+                        
+                                  IDs_to_move=IDs_to_move[!is.na(IDs_to_move)]
+                
+               
+                        moveToRow=find_pedigree_row(ID1, pedigree)          
+                        
+                        
+                        dups=1
+                while(length(IDs_to_move)>=1)
+                    {
+                    if(!(paste("Dup",dups,sep="") %in% colnames(pedigree)))
+                        {
+                            pedigree[, paste("Dup",dups,sep="")] = NA
+                        }
+                    if(is.na(pedigree[moveToRow, paste("Dup",dups,sep="")]))
+                        {
+                        if(!(IDs_to_move[1] %in% t(pedigree[moveToRow,])))
+                        {
+                                            #print(!(df$ID2[i] %in% pedigree[current_row,]))
+
+                            pedigree[moveToRow, paste("Dup",dups,sep="")]=IDs_to_move[1]
+                            }
+                            
+                         
+                                    IDs_to_move=IDs_to_move[-1]
+                                
+                       
+                    }
+                    else
+                        {
+                        dups=dups+1
+                    }
+                }         
+                
+                pedigree=pedigree[-1*removeRow,]
+                
+    return(pedigree)
+}
+
 SearchForDuplicateSamples=function()
     {
     pedigree=data.frame(Family="All", ID=unique(c(df$ID1,df$ID2)), Father=NA, Mother=NA, Sex=NA, stringsAsFactors = FALSE)
 pedigree$Dup1=NA
     for(i in which(df$suspect=="DP"))
         {
-        current_row=NA
-        if(df$ID1[i] %in% pedigree$ID)
-            {
-            current_row=which(pedigree$ID==df$ID1[i])
-        }
-        if(!(df$ID1[i] %in% pedigree$ID))
-            {
-            for(j in which(grepl("Dup",colnames(pedigree))))
-                {
-                if(df$ID1[i] %in% pedigree[,j])
-                    {
-                        current_row=which(pedigree[,j]==df$ID1[i])
-                }
+            if(length(find_pedigree_row(df$ID1[i], pedigree))!=1){
+                stop(paste("too many rows ID1",i))
             }
-        }
-        #print(current_row)
-        if(!is.na(current_row))
-            {
-            if(is.na(pedigree$Dup1[current_row]))
-                {
-                #print(df[i,c("ID1", "ID2")])
-                #print(pedigree[current_row,])
-                if(!(df$ID2[i] %in% t(pedigree[current_row,])))
-                    {
-                    pedigree$Dup1[current_row]=df$ID2[i]
-                    #print(pedigree[current_row,])
-                    pedigree=subset(pedigree, ID != df$ID2[i])
-                }
-                # current_row is now wrong and should not be re-used!
-
+            if(length(find_pedigree_row(df$ID2[i], pedigree))!=1){
+                stop(paste("too many rows ID2",i))
             }
-            else {
-                dups=2
-                while(TRUE)
-                    {
-                    if(!(paste("Dup",dups,sep="") %in% colnames(pedigree)))
-                        {
-                            pedigree[, paste("Dup",dups,sep="")] = NA
-                        }
-                    if(is.na(pedigree[current_row, paste("Dup",dups,sep="")]))
-                        {
-                        #print(i)
-                        if(!(df$ID2[i] %in% t(pedigree[current_row,])))
-                        {
-                                            #print(!(df$ID2[i] %in% pedigree[current_row,]))
-
-                            pedigree[current_row, paste("Dup",dups,sep="")]=df$ID2[i]
-                            pedigree=subset(pedigree, ID != df$ID2[i])
-                            }
-                        # current_row is now wrong and should not be re-used!
-                        break
-                    }
-                    else
-                        {
-                        dups=dups+1
-                    }
-                }
-            }
+        if(find_pedigree_row(df$ID1[i], pedigree)==find_pedigree_row(df$ID2[i], pedigree))
+        {
+            next
         }
-        if(is.na(current_row))
-            {
-            #print(i)
-        }
-
-
+        
+        pedigree=mergePedigreeRows(pedigree,df$ID1[i],df$ID2[i])
+        
     }
     return(pedigree)
     }
@@ -1423,8 +1420,14 @@ DeeperTrioComparison=function(mendels_tmp)
     }
 
 
-find_pedigree_row=function(x)
+find_pedigree_row=function(x, alternative_pedigree=NA)
     {
+        if(is.data.frame(alternative_pedigree)){
+            pedigree=alternative_pedigree
+        }
+        if(!exists("Dup_plus_ID_cols")){
+            Dup_plus_ID_cols=c("ID", colnames(pedigree)[which(startsWith(colnames(pedigree), "Dup"))])
+        }
     for(dup_col in Dup_plus_ID_cols)
         {
         if(x[1] %in% pedigree[,dup_col])
