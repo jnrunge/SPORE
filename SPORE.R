@@ -1269,8 +1269,13 @@ CompareMendelianErrorsForThresholds=function()
             # to avoid having a minor decrease affect the outcome dramatically
             # the data is smoothed a little bit
 
+            print("Smoothing V1_percentile")
+
             plot_V1_calc_smooth<-plot_V1_calc
             plot_V1_calc_smooth$focals_with_one_potential_trio<-predict(loess(focals_with_one_potential_trio~V1_percentile,plot_V1_calc_smooth, span=0.5))
+
+            print(head(plot_V1_calc))
+            print(head(plot_V1_calc_smooth))
 
            
        for(ijk in 2:nrow(plot_V1_calc_smooth)){
@@ -2095,6 +2100,7 @@ if(args[1]=="KAISER"){
 source(args[1])
 
 LowTrioMode=IntermediateSamplingMode
+print(paste0("LowTrioMode = ",LowTrioMode))
 when_PO_error=APO
 
 SbatchOrInline=1
