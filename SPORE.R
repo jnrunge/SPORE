@@ -1,4 +1,4 @@
-version="2.1.2"
+version="2.1.3"
 print(paste("SPORE ",version,sep=""))
 print("Web: https://github.com/jnrunge/SPORE")
 if(!exists("args") || length(args) == 0){
@@ -1265,23 +1265,35 @@ CompareMendelianErrorsForThresholds=function()
        
        if(nrow(plot_V1_calc)>1)
            {
+
+            # to avoid having a minor decrease affect the outcome dramatically
+            # the data is smoothed a little bit
+
+            print("Smoothing V1_percentile")
+
+            plot_V1_calc_smooth<-plot_V1_calc
+            plot_V1_calc_smooth$focals_with_one_potential_trio<-predict(loess(focals_with_one_potential_trio~V1_percentile,plot_V1_calc_smooth, span=0.5))
+
+            print(head(plot_V1_calc))
+            print(head(plot_V1_calc_smooth))
+
            
-       for(ijk in 2:nrow(plot_V1_calc)){
-           if(plot_V1_calc$focals_with_one_potential_trio[ijk] < plot_V1_calc$focals_with_one_potential_trio[ijk-1] | 
-             plot_V1_calc$focals_with_one_potential_trio[ijk] > AimPopFractionAPO)
+       for(ijk in 2:nrow(plot_V1_calc_smooth)){
+           if(plot_V1_calc_smooth$focals_with_one_potential_trio[ijk] < plot_V1_calc_smooth$focals_with_one_potential_trio[ijk-1] | 
+             plot_V1_calc_smooth$focals_with_one_potential_trio[ijk] > AimPopFractionAPO)
                {
                break
            }
            
            }
-           V1_percentile_threshold=plot_V1_calc$V1_percentile[ijk-1]
+           V1_percentile_threshold=plot_V1_calc_smooth$V1_percentile[ijk-1]
            }else
            {
            
-           if(nrow(plot_V1_calc)==1)
+           if(nrow(plot_V1_calc_smooth)==1)
                {
                
-               V1_percentile_threshold=plot_V1_calc$V1_percentile[1]
+               V1_percentile_threshold=plot_V1_calc_smooth$V1_percentile[1]
                
                }else{
                
@@ -1293,33 +1305,33 @@ CompareMendelianErrorsForThresholds=function()
        
        
        
-       if(nrow(plot_V1_mean_calc)>1)
-           {
+       # if(nrow(plot_V1_mean_calc)>1)
+       #     {
            
-       for(ijk in 2:nrow(plot_V1_mean_calc)){
-           if(plot_V1_mean_calc$focals_with_one_potential_trio[ijk] < plot_V1_mean_calc$focals_with_one_potential_trio[ijk-1] |
-             plot_V1_mean_calc$focals_with_one_potential_trio[ijk] > AimPopFractionAPO)
-               {
-               break
-           }
+       # for(ijk in 2:nrow(plot_V1_mean_calc)){
+       #     if(plot_V1_mean_calc$focals_with_one_potential_trio[ijk] < plot_V1_mean_calc$focals_with_one_potential_trio[ijk-1] |
+       #       plot_V1_mean_calc$focals_with_one_potential_trio[ijk] > AimPopFractionAPO)
+       #         {
+       #         break
+       #     }
            
-           }
-           V1_V1_mean_threshold=plot_V1_mean_calc$V1_V1_mean[ijk-1]
-           }else
-           {
+       #     }
+       #     V1_V1_mean_threshold=plot_V1_mean_calc$V1_V1_mean[ijk-1]
+       #     }else
+       #     {
            
-           if(nrow(plot_V1_mean_calc)==1)
-               {
+       #     if(nrow(plot_V1_mean_calc)==1)
+       #         {
                
-               V1_V1_mean_threshold=plot_V1_mean_calc$V1_V1_mean[1]
+       #         V1_V1_mean_threshold=plot_V1_mean_calc$V1_V1_mean[1]
                
-               }else{
+       #         }else{
                
-               V1_V1_mean_threshold=-999
+       #         V1_V1_mean_threshold=-999
                
-               }
+       #         }
            
-           }
+       #     }
        
        }
     
@@ -1340,20 +1352,27 @@ CompareMendelianErrorsForThresholds=function()
                               y=max(plot_V1_calc$focals_with_one_potential_trio[plot_V1_calc$V1_percentile==V1_percentile_threshold])), color="blue")
         ggsave(filename = paste(vcf,"-",pedigree_file_add_name,"-TrioMendelErrorsPercentileThreshold.png",sep=""), plot = p)
 
-        p<-ggplot(plot_V1_mean, aes(V1_V1_mean,focals_with_one_potential_trio))+
-        geom_line(color="blue")+
-        geom_line(mapping=aes(V1_V1_mean, focals_with_more_than_one_potential_trio),color="red")+
-        #geom_line(mapping=aes(V1_V1_mean, distance),color="black")+
-        #geom_label(x=quantile(plot_V1_mean$V1_V1_mean, 0.2), y=quantile(plot_V1_mean$focals_with_one_potential_trio, 0.5), label=V1_V1_mean_threshold)+
-        ylab("")+
-        geom_point(mapping=aes(x=V1_V1_mean_threshold,
-                              y=max(plot_V1_mean_calc$focals_with_one_potential_trio[plot_V1_mean_calc$V1_V1_mean==V1_V1_mean_threshold])), color="blue")
-        ggsave(filename = paste(vcf,"-",pedigree_file_add_name,"-TrioMendelErrorsComparedToMeanThreshold.png",sep=""), plot = p)
+        if(LowTrioMode==FALSE)
+            {
+            p<-ggplot(plot_V1_mean, aes(V1_V1_mean,focals_with_one_potential_trio))+
+            geom_line(color="blue")+
+            geom_line(mapping=aes(V1_V1_mean, focals_with_more_than_one_potential_trio),color="red")+
+            #geom_line(mapping=aes(V1_V1_mean, distance),color="black")+
+            #geom_label(x=quantile(plot_V1_mean$V1_V1_mean, 0.2), y=quantile(plot_V1_mean$focals_with_one_potential_trio, 0.5), label=V1_V1_mean_threshold)+
+            ylab("")+
+            geom_point(mapping=aes(x=V1_V1_mean_threshold,
+                                  y=max(plot_V1_mean_calc$focals_with_one_potential_trio[plot_V1_mean_calc$V1_V1_mean==V1_V1_mean_threshold])), color="blue")
+            ggsave(filename = paste(vcf,"-",pedigree_file_add_name,"-TrioMendelErrorsComparedToMeanThreshold.png",sep=""), plot = p)
+        }
         }
     
     system(command=paste("echo ", V1_percentile_threshold, " > ", vcf,"-",pedigree_file_add_name,"-TrioMendelErrorsPercentileThreshold.txt",sep=""), intern=TRUE)
+
+    if(LowTrioMode==FALSE)
+            {
     
-    system(command=paste("echo ", V1_V1_mean_threshold, " > ", vcf,"-",pedigree_file_add_name,"-TrioMendelErrorsComparedToMeanThreshold.txt",sep=""), intern=TRUE)
+        system(command=paste("echo ", V1_V1_mean_threshold, " > ", vcf,"-",pedigree_file_add_name,"-TrioMendelErrorsComparedToMeanThreshold.txt",sep=""), intern=TRUE)
+    }
     
     fwrite(plot_V1, paste(vcf,"-",pedigree_file_add_name,"-TrioMendelErrorsPercentileThreshold.csv.gz",sep=""))
     fwrite(plot_V1_mean, paste(vcf,"-",pedigree_file_add_name,"-TrioMendelErrorsComparedToMeanThreshold.csv.gz",sep=""))
@@ -2081,6 +2100,7 @@ if(args[1]=="KAISER"){
 source(args[1])
 
 LowTrioMode=IntermediateSamplingMode
+print(paste0("LowTrioMode = ",LowTrioMode))
 when_PO_error=APO
 
 SbatchOrInline=1
