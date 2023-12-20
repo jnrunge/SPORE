@@ -12,7 +12,20 @@ setwd(dir)
 
 
 
-pureGT=fread(pureGT_file, data.table=FALSE)
+pureGT=fread(pureGT_file, data.table=FALSE, header=FALSE)
+
+# only GT
+
+pureGT <- as.data.frame(apply(pureGT, c(1, 2), function(x) substr(x, 1, 3)))
+
+
+# Ignore phasing
+# Replace "|" with "/"
+pureGT <- apply(pureGT, c(1, 2), function(x) gsub("\\|", "/", x))
+# Replace "1/0" with "0/1"
+pureGT <- apply(pureGT, c(1, 2), function(x) gsub("1/0", "0/1", x))
+pureGT <- as.data.frame(pureGT)
+
 
 samples_ahmm=read.table(samples_file, header = FALSE, stringsAsFactors = FALSE)
 
