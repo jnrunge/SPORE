@@ -1,9 +1,8 @@
-version="2.1.3"
+version="2.1.4"
 print(paste("SPORE ",version,sep=""))
 print("Web: https://github.com/jnrunge/SPORE")
-if(!exists("args") || length(args) == 0){
-  args <- commandArgs(trailingOnly=TRUE)
-}
+args <- commandArgs(trailingOnly=TRUE)
+
 print(args)
 if(length(args)==0){
     stop("Please provide your settings file as an argument to SPORE when you run it.")

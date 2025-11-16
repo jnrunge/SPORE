@@ -1,14 +1,1 @@
-9c8fa801f1459b968f2c7847bcf4ec28  simulated_genotypes.vcf.gz-APO6-IBD0_IQR_threshold.csv.gz
-8fe32b9fa591727489484b8890737bd2  simulated_genotypes.vcf.gz-APO6-IBD0_IQR_threshold.txt
-afd3b5d1dce61c0240f941c4e253c89a  simulated_genotypes.vcf.gz-APO6-IBD0_threshold.csv.gz
-23a0453a7be1a6c1fe018b4592f33bd5  simulated_genotypes.vcf.gz-APO6-IBD0_threshold.txt
-77c7e460dcd56f14a2843d0a2e0e89e4  simulated_genotypes.vcf.gz-APO6-PO-undirected.tsv
-8e877f9d6f224e20d2337fadaa6eaa0d  simulated_genotypes.vcf.gz-APO6-TrioMendelErrorsComparedToMeanThreshold.csv.gz
-0ba95a1a8cf2c830336b0e29837c5991  simulated_genotypes.vcf.gz-APO6-TrioMendelErrorsComparedToMeanThreshold.txt
-00aac4dde523110a331459437498e26c  simulated_genotypes.vcf.gz-APO6-TrioMendelErrorsPercentileThreshold.csv.gz
-87ea2472f71e9015ef7b3267096d5761  simulated_genotypes.vcf.gz-APO6-TrioMendelErrorsPercentileThreshold.txt
-d04491caaab672609c86cb4ce1bda03f  simulated_genotypes.vcf.gz-APO6-df_analyze_V1_cutoffs.csv
-43d6cebee34ed2f9748c9f5ddfdda4cd  simulated_genotypes.vcf.gz-APO6-homo_mendel_rel_threshold.csv.gz
-867c353ae29a80f2111d9169a8e9b71e  simulated_genotypes.vcf.gz-APO6-homo_mendel_rel_threshold.txt
-8e78085a3ead657358fea82414ba2608  simulated_genotypes.vcf.gz-APO6-imputed_pedigree.ped
-67a8bad27ecf675d7a1e29f7d0b93015  simulated_genotypes.vcf.gz-APO6-mendels.csv
+365595319b2b8b2a2623dcbc93b0136d  simulated_genotypes.vcf.gz-APO6-imputed_pedigree.ped

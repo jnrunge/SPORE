@@ -28,7 +28,7 @@ The easiest way to meet the prerequisites (except for *TRUFFLE*, see above) is t
 
 ```bash
 
-mamba create -n SPORE r-base=3.6.3 r-readr=1.4.0 r-stringr=1.4.0 r-dplyr=1.0.2 r-tidyr=1.1.2 r-data.table=1.13.2 r-ggplot2=3.3.2 r-naturalsort=0.1.3 r-sys=3.4 r-r.utils gzip bcftools=1.10 git
+mamba create -n SPORE -c bioconda -c conda-forge r-base=3.6.3 r-readr=1.4.0 r-stringr=1.4.0 r-dplyr=1.0.2 r-tidyr=1.1.2 r-data.table=1.13.2 r-ggplot2=3.3.2 r-naturalsort=0.1.3 r-sys=3.4 r-r.utils gzip bcftools=1.10 git
 
 conda activate SPORE
 
